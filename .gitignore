@@ -41,6 +41,10 @@ apps/web/dist/
 .dsh-build/
 .dsh-report/
 .playwright-mcp/
+# Browser binaries a local PLAYWRIGHT_BROWSERS_PATH install downloads.
+.pw-browsers/
+# Screenshots from the manual cyberpunk visual-capture harness.
+cyberpunk-shots/
 .orig
 .worktrees/
 worktrees/
