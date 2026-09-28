@@ -12,6 +12,7 @@
 
 - Node.js 支持 22.19+ 与 24+。CI 覆盖 22.19、24 和 26；见 [Node 引擎下限 Agent Note](../.agents/notes/implemented/process/2026-07-06-node-engine-floor.zh.md)。
 - 启用 Node.js TypeScript 类型剥离。仓库构建脚本用 tsdown 的 native 配置加载器加载 `tsdown.config.ts`，因此当 `NODE_OPTIONS` 含 `--no-experimental-strip-types` 或 Node.js 构建缺少 TypeScript 支持时会失败；`pnpm run build` 会先检查这一条件并指出原因。
+- Node.js 开发头文件，`pnpm run build` 的 `build:native-system` 步骤需要它：该步骤使用运行构建的 Node 安装自带的头文件编译 `native/system` 的 Node-API addon。如果所用的 Node 发行版不带这些头文件，就需要安装与之匹配的开发包，例如 Fedora 上的 `nodejs22-devel`。
 - 启用了 Corepack 的 pnpm。仓库在 `package.json` 中固定使用 `pnpm@11.28.5`；如果 `pnpm --version` 无法通过 Corepack 解析，请先运行 `corepack enable`。
 - Git 2.26 或更高版本；钩子设置会启用 Git 的 worktree 专属配置扩展。
 - 可选：一个 DeepSeek API key，用于 Web、headless 和 ACP（Agent Client Protocol）自动化 agent（智能体）演示以及真实 API 的 e2e 测试。
@@ -164,6 +165,8 @@ keyless [CI 工作流](../.github/workflows/ci.yml) 将独立门禁分组到若�
 ### 日常命令
 
 根目录的[贡献者说明](../AGENTS.md#commands)概述常用命令，[`package.json`](../package.json) 与 [scripts/run-gates.ts](../scripts/run-gates.ts) 则负责当前脚本和门禁清单。请选择覆盖变更表面的最小检查集。文档变更使用 `pnpm run doc-sync`；包公开行为变更还需更新所属 README 或 JSDoc，而基于构建产物的检查需要先运行 `pnpm run build`。
+
+从早期版本的 checkout 沿用下来的构建产物可能比生成它的源码存活得更久，从而导致增量构建失败。`pnpm run clean` 会移除仓库自有的构建产物，不会触碰依赖和已提交的源码；之后再次运行 `pnpm run build` 会重新生成它们。
 
 ### Profile 运行
 

@@ -10,6 +10,7 @@ The setup tutorial takes a new contributor from prerequisites to a checked check
 
 - Node.js supports 22.19+ and 24+. CI covers 22.19, 24, and 26; see the [Node engine floor Agent Note](../.agents/notes/implemented/process/2026-07-06-node-engine-floor.md).
 - Node.js TypeScript type stripping enabled. The repository build scripts load `tsdown.config.ts` with tsdown's native config loader, so they fail when `--no-experimental-strip-types` is in `NODE_OPTIONS` or the Node.js build lacks TypeScript support; `pnpm run build` checks this first and names the cause.
+- Node.js development headers, which `pnpm run build` needs for its `build:native-system` step: the step compiles the `native/system` Node-API addon against the headers shipped with the Node installation running the build. A Node distribution that omits them needs its matching development package, such as `nodejs22-devel` on Fedora.
 - Corepack-enabled pnpm. The repo pins `pnpm@11.28.5` in `package.json`; run `corepack enable` if `pnpm --version` does not resolve through Corepack.
 - Git 2.26 or newer; hook setup enables Git's worktree-specific configuration extension.
 - Optional: a DeepSeek API key for the Web, headless, and ACP automation demos and real-API e2e tests.
@@ -159,6 +160,8 @@ The credential-free dsh dependency-layout and dsh/vendor pack rehearsals use the
 ### Daily commands
 
 The root [contributor instructions](../AGENTS.md#commands) summarize common commands, while [`package.json`](../package.json) and [scripts/run-gates.ts](../scripts/run-gates.ts) own the current script and gate inventories. Select the smallest checks that cover the changed surface. Documentation changes use `pnpm run doc-sync`; package-public behavior changes also update the owning README or JSDoc, and built-artifact checks require `pnpm run build` first.
+
+Build output carried over from an earlier revision of the checkout can outlive the sources it was generated from and fail an incremental build. `pnpm run clean` removes repository-owned build output without touching dependencies or committed sources, and the next `pnpm run build` regenerates it.
 
 ### Profile runs
 
