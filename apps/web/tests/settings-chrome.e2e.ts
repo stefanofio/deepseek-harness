@@ -310,7 +310,7 @@ describe('web e2e: settings modal and General preferences', () => {
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
-  async function selectTheme(cube: Locator, preference: 'light' | 'dark' | 'system'): Promise<void> {
+  async function selectTheme(cube: Locator, preference: 'light' | 'dark' | 'cyberpunk' | 'system'): Promise<void> {
     // Optimistic UI and a file value from an earlier gesture do not prove this write finished.
     const [response] = await Promise.all([
       page.waitForResponse((candidate) => {
@@ -506,6 +506,80 @@ describe('web e2e: settings modal and General preferences', () => {
     await page.emulateMedia({ colorScheme: 'light' })
     await expect.poll(async () => (await readState()).faviconPaths).toEqual(['/favicon.svg'])
     expectThemeColorSynchronized(await readState())
+    await page.keyboard.press('Escape')
+    expect(tripwire.pageErrors).toEqual([])
+  }, 90_000)
+
+  it('selects the cyberpunk theme, applies its palette and effects, and persists it', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-settings-cyberpunk'))
+    onTestFinished(async () => {
+      await page.keyboard.press('Escape')
+      // Restore the light default for the specs that follow.
+      await openSettings(page, 'zh')
+      const light = page.getByRole('dialog', { name: '设置' }).getByRole('button', { name: '浅色' })
+      await selectTheme(light, 'light')
+      await page.keyboard.press('Escape')
+    })
+
+    interface CyberState {
+      themeId: string | null
+      dark: boolean
+      neon: string
+      gridSize: string
+      sheetPresent: boolean
+      sheetInert: boolean
+    }
+    const readCyber = async (target: Page = page): Promise<CyberState> => await target.evaluate(() => {
+      const computed = getComputedStyle(document.body)
+      const sheet = [...document.head.querySelectorAll('style')]
+        .find(node => node.textContent?.includes('[data-dsh-theme=cyberpunk]'))
+      return {
+        themeId: document.body.getAttribute('data-dsh-theme'),
+        dark: document.body.hasAttribute('data-ds-dark-theme'),
+        neon: computed.getPropertyValue('--dsh-cyber-neon').trim(),
+        gridSize: computed.getPropertyValue('--dsh-cyber-grid-size').trim(),
+        sheetPresent: sheet !== undefined,
+        // The sheet's rules are all attribute-scoped, so it cannot affect the
+        // other palettes: assert the scoping rather than trusting the name.
+        sheetInert: sheet?.textContent?.includes('[data-dsh-theme=cyberpunk]') === true,
+      }
+    })
+
+    await openSettings(page, 'zh')
+    const dialog = page.getByRole('dialog', { name: '设置' })
+    // The preference is durable, so the write must reach the Host settings API.
+    const cube = dialog.getByRole('button', { name: '赛博朋克' })
+    await selectTheme(cube, 'cyberpunk')
+    await expect.poll(() => cube.getAttribute('aria-pressed'), { timeout: 5_000 }).toBe('true')
+
+    await expect.poll(async () => (await readCyber()).themeId, { timeout: 5_000 }).toBe('cyberpunk')
+    const cyber = await readCyber()
+    // The palette is dark-scheme and its tokens reached the document.
+    expect(cyber.dark).toBe(true)
+    expect(cyber.neon).not.toBe('')
+    expect(cyber.gridSize).not.toBe('')
+    expect(cyber.sheetPresent).toBe(true)
+    expect(cyber.sheetInert).toBe(true)
+    await page.keyboard.press('Escape')
+
+    // Persistence: a reload keeps the preference, and the pre-plugin bootstrap
+    // must paint the chassis without flashing the default canvas.
+    await page.reload({ waitUntil: 'load' })
+    await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+    await expect.poll(async () => (await readCyber()).themeId, { timeout: 5_000 }).toBe('cyberpunk')
+    // The theme-source attribute mirrors the resolved *scheme* for native
+    // chrome, not the preference id: a fixed non-system preference publishes
+    // `dark` here even though the theme id above reads `cyberpunk`.
+    expect(await page.evaluate(() => document.documentElement.dataset.dsThemeSource)).toBe('dark')
+    // The bootstrap row painted the chassis before any plugin ran.
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(4, 6, 11)')
+
+    // Switching away retracts the marker so the effect sheet goes inert again.
+    await openSettings(page, 'zh')
+    const dark = page.getByRole('dialog', { name: '设置' }).getByRole('button', { name: '深色' })
+    await selectTheme(dark, 'dark')
+    await expect.poll(async () => (await readCyber()).themeId, { timeout: 5_000 }).toBeNull()
+    expect((await readCyber()).dark).toBe(true)
     await page.keyboard.press('Escape')
     expect(tripwire.pageErrors).toEqual([])
   }, 90_000)
