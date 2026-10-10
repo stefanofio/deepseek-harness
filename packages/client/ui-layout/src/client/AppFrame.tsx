@@ -17,23 +17,75 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type {
-  PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
+  HostObservable, PropsLocale, PropsRenderSlots, PropsRuntime, PropsSlotHooks, PropsStore,
 } from '@deepseek-ai/dsh-client-ui-slots'
+import type { ConnectionState } from '@deepseek-ai/dsh-client-connection/client'
 import { CENTER_MIN, clampWidth, computeColumns, RIGHTBAR_DEFAULT_RATIO, RIGHTBAR_MAX_RATIO, RIGHTBAR_MIN, SIDEBAR_AUTO_COLLAPSE, SIDEBAR_COLLAPSED, SIDEBAR_DEFAULT } from './columns.ts'
 import { DocumentTitle } from './DocumentTitle.tsx'
 import type { createLayoutStore } from './stores.ts'
 import css from './AppFrame.module.css'
 
-/** Full composed props: runtime share + child-slot render share + store share. */
+/**
+ * Full composed props: runtime share + child-slot render share + store share,
+ * plus the inject face's `hooks` compartment, which arrives as the bound
+ * `useConnectionState` selector the link readout renders from.
+ */
 export type AppFrameProps =
   & PropsRuntime<'root'>
   & PropsRenderSlots<'sidebar' | 'main' | 'rightbar' | 'shell.bottom' | 'shell.overlay' | 'shell.leading'>
   & PropsStore<ReturnType<typeof createLayoutStore>>
   & PropsLocale<'common'>
+  // Optional: a composition without the connection plugin omits the readout.
+  & Partial<PropsSlotHooks<{ connectionState: HostObservable<ConnectionState> }>>
 
-/** Center column grid item (session-body building block). */
-function CenterColumn(props: { children?: ReactNode }) {
-  return <div className={css.centerCol}>{props.children}</div>
+/**
+ * The viewport's link readout: a non-linguistic status code for the live
+ * connection, plus the state token a theme sheet keys its coloring to.
+ *
+ * The label is deliberately outside the locale dictionaries — it is a console
+ * readout, not product copy, and reads the same in every language.
+ */
+export interface CyberHeartbeat {
+  /** Connection state the frame is currently rendering from. */
+  readonly state: ConnectionState
+  /** Console-style readout for that state. */
+  readonly label: string
+}
+
+/** Console readout per connection state, in the register of the frame's other labels. */
+const HEARTBEAT_CODES: Readonly<Record<ConnectionState, string>> = {
+  connected: 'LINK // ACTIVE',
+  connecting: 'LINK // HANDSHAKE',
+  disconnected: 'LINK // LOST',
+}
+
+/**
+ * Center column grid item (session-body building block). The `data-cyber-viewport`
+ * marker names the main viewport for theme effect sheets that must cover it and
+ * only it — a sidebar or docked pane is a separate instrument, not this tube.
+ * The roll band rides its own element because the column's two pseudo-elements
+ * already carry the corner frame.
+ */
+function CenterColumn(props: { children?: ReactNode; connection: CyberHeartbeat | undefined }) {
+  return (
+    <div className={css.centerCol} data-cyber-viewport data-cyber-link={props.connection?.state}>
+      {/* The main panel is marked so a theme sheet can reserve its own edge
+          band against the panel rather than reaching through the frame's
+          chrome elements. */}
+      <div className={css.centerBody} data-cyber-viewport-body>{props.children}</div>
+      <div data-cyber-rollbar aria-hidden="true" />
+      <div data-cyber-rule aria-hidden="true" />
+      <div data-cyber-sweep aria-hidden="true" />
+      {/* The link readout doubles as a liveness heartbeat: it renders from the
+          live connection state, so a stale or dropped transport shows here
+          rather than only in the transcript's own error surface. Every element
+          in this group is display:none until a theme sheet claims it, so an
+          unthemed composition shows no chrome. */}
+      {props.connection !== undefined && (
+        <div data-cyber-linkframe aria-hidden="true">{props.connection.label}</div>
+      )}
+    </div>
+  )
 }
 
 /** Subscribe to the main key without subscribing the column frame to each panel id. */
@@ -122,11 +174,23 @@ export function AppFrame({
   useStore,
   useSessions,
   usePanelInfo,
+  useConnectionState,
   actions,
   renderSlot,
   t,
 }: AppFrameProps) {
   const layoutInfo = useStore(state => state.layoutInfo)
+  // The viewport's link readout follows the live transport, so the frame is a
+  // liveness indicator rather than decoration. Selecting the state itself keeps
+  // a re-render scoped to actual transport changes, and the hook stays callable
+  // when the composition has no connection plugin.
+  const connectionState = useConnectionState?.(state => state)
+  const connection = useMemo<CyberHeartbeat | undefined>(() => connectionState === undefined
+    ? undefined
+    : { state: connectionState, label: HEARTBEAT_CODES[connectionState] }, [connectionState])
+  // Theme-specific chrome is gated here rather than in CSS: an element with no
+  // rule for the active theme still renders its text, so hiding it must be a
+  // render decision, not a paint one.
   const frameRef = useRef<HTMLDivElement | null>(null)
   const viewport = layoutInfo.viewportWidth
 
@@ -281,7 +345,7 @@ export function AppFrame({
         {sidebar}
       </div>
       <>
-        <CenterColumn>{main}</CenterColumn>
+        <CenterColumn connection={connection}>{main}</CenterColumn>
         <RightbarColumn>
           {renderSlot('rightbar', { width: normal.rightbar, viewportWidth: viewport, canShow: normal.rightbar > 0 })}
         </RightbarColumn>

@@ -2,10 +2,11 @@
  * Global theme DOM applier: projects the resolved ThemeSnapshot onto the
  * document — `html { color-scheme }` for native UA chrome (scrollbars, form
  * controls), `body[data-ds-dark-theme]` for the token palette, the active
- * theme's alias-token overrides as inline CSS variables on body, the content
- * font-size axis (`--dsh-content-font-size`), the code and terminal sizes
- * (`--dsh-code-font-size`, `--dsh-terminal-font-size`), the user font lists
- * (`--dsh-font-family-<role>`), `html[data-ds-theme-source]`
+ * theme's alias-token overrides as inline CSS variables on body, the active
+ * theme id on `body[data-dsh-theme]` so a theme's own effect sheet can opt in,
+ * the content font-size axis (`--dsh-content-font-size`), the code and
+ * terminal sizes (`--dsh-code-font-size`, `--dsh-terminal-font-size`), the
+ * user font lists (`--dsh-font-family-<role>`), `html[data-ds-theme-source]`
  * for native-chrome mirroring, and one presenter-owned
  * `meta[name="theme-color"]` for surrounding browser UI. Pure DOM writes, no
  * React involvement; the presenter only ever retracts what it wrote itself,
@@ -15,6 +16,23 @@ import type { FontRole, ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/c
 
 /** Body attribute selecting the dark base palette in the token stylesheets. */
 export const DARK_ATTRIBUTE = 'data-ds-dark-theme'
+
+/**
+ * Body attribute naming the active theme id. Unlike {@link DARK_ATTRIBUTE},
+ * which every dark-scheme theme shares, this distinguishes one registered
+ * theme from another so a theme can ship an effect sheet that activates only
+ * while it is selected. Absent for the built-in `light`/`dark` themes, whose
+ * presentation is entirely the base palettes.
+ */
+export const THEME_ID_ATTRIBUTE = 'data-dsh-theme'
+
+/**
+ * Body attribute publishing the resolved effect-intensity level. Themes that
+ * ship an effect layer scale it from this value; a theme without one ignores
+ * it. Applied on every theme, not only the ones that read it, so switching
+ * between them cannot leave a stale level behind.
+ */
+export const INTENSITY_ATTRIBUTE = 'data-dsh-intensity'
 
 /**
  * Root attribute publishing the theme source (`light`, `dark`, or `system`)
@@ -74,6 +92,14 @@ export class ThemePresenter {
     const body = document.body
     if (scheme === 'dark') body.setAttribute(DARK_ATTRIBUTE, '')
     else body.removeAttribute(DARK_ATTRIBUTE)
+    // Only a registered non-built-in theme is namespaced; the built-in pair
+    // needs no attribute because the base palettes already describe it.
+    // The effect-intensity level rides the body as its own attribute so the
+    // boot row, the effect sheet, and this presenter agree on one source
+    // without either reader going through the theme service.
+    body.setAttribute(INTENSITY_ATTRIBUTE, snapshot.intensity)
+    if (snapshot.active.id === 'light' || snapshot.active.id === 'dark') body.removeAttribute(THEME_ID_ATTRIBUTE)
+    else body.setAttribute(THEME_ID_ATTRIBUTE, snapshot.active.id)
     for (const [role, name] of Object.entries(FONT_SIZE_VARIABLES)) {
       body.style.setProperty(name, `${snapshot.fontSizes[role as FontRole]}px`)
     }
@@ -93,14 +119,17 @@ export class ThemePresenter {
   }
 
   /**
-   * Retract root color-scheme, the theme-source attribute, the palette
-   * attribute, token variables, the font sizes, font lists, and the owned metadata node.
+   * Retract root color-scheme, the theme-source attribute, the palette and
+   * theme-id attributes, token variables, the font sizes, font lists, and the
+   * owned metadata node.
    */
   dispose(): void {
     document.documentElement.style.removeProperty('color-scheme')
     document.documentElement.removeAttribute(THEME_SOURCE_ATTRIBUTE)
     const body = document.body
     body.removeAttribute(DARK_ATTRIBUTE)
+    body.removeAttribute(THEME_ID_ATTRIBUTE)
+    body.removeAttribute(INTENSITY_ATTRIBUTE)
     for (const name of Object.values(FONT_SIZE_VARIABLES)) body.style.removeProperty(name)
     for (const name of Object.values(FONT_FAMILY_VARIABLES)) body.style.removeProperty(name)
     for (const name of this.appliedTokens) body.style.removeProperty(name)

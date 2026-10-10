@@ -12,6 +12,10 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
+// Type-only: the connection handle shape the frame's liveness readout reads.
+// The client half provides the service without a Context merge, so it is
+// resolved through the strict accessor below rather than a property proxy.
+import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import type { HostObservable, SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
 import type { PanelInfo } from './service.ts'
 import { AppFrame } from './AppFrame.tsx'
@@ -147,7 +151,7 @@ export interface RightbarOwnerProps {
 }
 
 /** Required services (cordis fiber inject — the loader passes all module exports as an object plugin). */
-export const inject = ['slots', 'theme', 'locale', 'shortcuts']
+export const inject = ['slots', 'theme', 'locale', 'shortcuts', 'connection']
 
 /**
  * Client plugin body: provide ctx.layout, then one register() call — AppFrame
@@ -159,6 +163,9 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register('shortcuts.layout', { zh, en }), 'layout: command labels')
   const t = ctx.locale.bind('shortcuts.layout')
 
+  // Resolved once per fiber: the connection service is provided by a sibling
+  // plugin, and the frame's readout is optional decoration when it is absent.
+  const connection = ctx.get('connection') as ConnectionHandle | undefined
   ctx.effect(() => {
     const handle = createLayoutStore()
     const instance = handle.create()
@@ -187,6 +194,14 @@ export function apply(ctx: ClientContext): void {
         'shell.leading': { kind: 'single', scope: 'root' },
       },
       store,
+      inject: () => ({
+        // The frame's link readout is a liveness indicator, so it follows the
+        // live transport rather than a static label. Handing over the bare
+        // observable lets the renderer bind it, as the settings surfaces do.
+        // Absent in a composition without the connection plugin: the readout is
+        // then omitted rather than reporting a state nothing is tracking.
+        ...(connection === undefined ? {} : { hooks: { connectionState: connection.state } }),
+      }),
     }, AppFrame)
     const disposeShortcut = ctx.shortcuts.register({
       id: 'sidebar.left.toggle' as ShortcutCommandId, label: () => t('toggle'), aliases: ['sidebar', 'toggle left sidebar'],

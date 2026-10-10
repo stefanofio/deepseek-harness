@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 /** Frame interactions with a real store and explicitly driven browser measurements. */
 import type { GlobalStandardProps, RenderOpts } from '@deepseek-ai/dsh-client-ui-slots'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type { ConnectionState } from '@deepseek-ai/dsh-client-connection/client'
 import { allowAllAccess, bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render } from '@testing-library/react'
@@ -60,9 +62,14 @@ function resize(width: number): void {
   })
 }
 
-function mountFrame(windowWidth = frameWidth) {
+function mountFrame(windowWidth = frameWidth, options: { withConnection?: boolean } = {}) {
   vi.stubGlobal('innerWidth', windowWidth)
   const instance = createLayoutStore().create()
+  // The frame's link readout follows this source; a spec drives it to prove the
+  // readout is a liveness indicator rather than a static label.
+  const connectionStore = createSnapshotStore<ConnectionState>('connected')
+  const useConnectionState = bindSnapshotSelector(connectionStore)
+  const setConnectionState = (next: ConnectionState): void => { connectionStore.set(next) }
   const slotCalls: { key: string; props: object; options: RenderOpts | undefined }[] = []
   const renderSlot: AppFrameProps['renderSlot'] = (key, owner, options) => {
     slotCalls.push({ key, props: owner, options })
@@ -98,6 +105,7 @@ function mountFrame(windowWidth = frameWidth) {
       useSessionStatus={useSessionStatus}
       useSessionRetainInfo={() => undefined}
       useResource={useResource}
+      {...(options.withConnection === false ? {} : { useConnectionState })}
       useWorkspaces={sel => sel(workspaceState)}
       {...allowAllAccess}
       t={key => key === 'brand.localBuild' ? 'DSH Local Build' : key}
@@ -106,7 +114,7 @@ function mountFrame(windowWidth = frameWidth) {
   const utils = render(element())
   const frame = utils.container.firstElementChild as HTMLElement
   return {
-    ...utils, instance, frame, slotCalls,
+    ...utils, instance, frame, slotCalls, setConnectionState,
     rerenderFrame: () => { utils.rerender(element()) },
     rightOwner: () => slotCalls.findLast(c => c.key === 'rightbar')!.props as RightbarOwnerProps,
     sidebarOwner: () => slotCalls.findLast(c => c.key === 'sidebar')!.props as SidebarOwnerProps,
@@ -184,6 +192,32 @@ afterEach(() => {
 })
 
 describe('AppFrame', () => {
+  it('reports transport health through the viewport link readout', () => {
+    // The corner readout is a liveness indicator, not decoration: it must
+    // follow the connection service so a dropped transport is visible in the
+    // shell rather than only in the transcript's own error surface.
+    const view = mountFrame()
+    const readout = (): Element | null => view.container.querySelector('[data-cyber-linkframe]')
+    const viewport = (): Element | null => view.container.querySelector('[data-cyber-viewport]')
+    expect(readout()?.textContent).toBe('LINK // ACTIVE')
+    expect(viewport()?.getAttribute('data-cyber-link')).toBe('connected')
+    act(() => { view.setConnectionState('connecting') })
+    expect(readout()?.textContent).toBe('LINK // HANDSHAKE')
+    expect(viewport()?.getAttribute('data-cyber-link')).toBe('connecting')
+    act(() => { view.setConnectionState('disconnected') })
+    expect(readout()?.textContent).toBe('LINK // LOST')
+    expect(viewport()?.getAttribute('data-cyber-link')).toBe('disconnected')
+  })
+
+  it('omits the link readout when no connection service is composed', () => {
+    // The readout is optional: with no connection plugin there is no transport
+    // to report, and claiming one would be worse than showing nothing.
+    const view = mountFrame(undefined, { withConnection: false })
+    expect(view.container.querySelector('[data-cyber-linkframe]')).toBeNull()
+    // The frame brackets themselves are theme-drawn and stay present.
+    expect(view.container.querySelector('[data-cyber-viewport]')).not.toBeNull()
+  })
+
   it('localizes the product title without a configured build title', () => {
     mountFrame()
     expect(document.title).toBe('DSH Local Build')

@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { FontFamilies, ThemePreference, ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
 import { fontFamilyVariable } from '@deepseek-ai/dsh-client-ui-theme/src/theme-settings.ts'
-import { DARK_ATTRIBUTE, THEME_SOURCE_ATTRIBUTE, ThemePresenter } from '@deepseek-ai/dsh-client-ui-layout/src/client/theme-presenter.ts'
+import { DARK_ATTRIBUTE, THEME_ID_ATTRIBUTE, THEME_SOURCE_ATTRIBUTE, ThemePresenter } from '@deepseek-ai/dsh-client-ui-layout/src/client/theme-presenter.ts'
 
 const LIGHT_THEME_COLOR = 'rgb(255, 255, 255)'
 const DARK_THEME_COLOR = 'rgb(21, 21, 23)'
@@ -14,10 +14,19 @@ function snapshot(
   fontSize = 14,
   preference: ThemePreference = colorScheme,
   fontFamilies: FontFamilies = { text: '', code: '', terminal: '' },
+  id = `${colorScheme}-test`,
 ): ThemeSnapshot {
   // The presenter must key off colorScheme, not the id — keep them distinct.
-  const active = { id: `${colorScheme}-test`, colorScheme, tokens }
-  return { preference, fontSizes: { text: fontSize, code: 11, terminal: 13 }, fontFamilies, active, themes: [active], revision: 1 }
+  const active = { id, colorScheme, tokens }
+  return {
+    preference,
+    fontSizes: { text: fontSize, code: 11, terminal: 13 },
+    fontFamilies,
+    intensity: 'standard' as const,
+    active,
+    themes: [active],
+    revision: 1,
+  }
 }
 
 function clearThemePresentation(): void {
@@ -109,8 +118,22 @@ describe('ThemePresenter', () => {
     expect(document.body.style.getPropertyValue('--dsh-font-family-terminal')).toBe('')
   })
 
-  it('publishes the theme source: system stays system, fixed preferences publish the resolved scheme', () => {
+  it('names the active registered theme so its own effect sheet can opt in, and clears it for the built-ins', () => {
     const presenter = new ThemePresenter()
+    presenter.apply(snapshot('dark', {}, 14, 'cyberpunk', undefined, 'cyberpunk'))
+    expect(document.body.getAttribute(THEME_ID_ATTRIBUTE)).toBe('cyberpunk')
+    // The built-in pair is described by the base palettes alone, so switching
+    // to one must retract the attribute rather than leave a stale theme name.
+    presenter.apply(snapshot('dark', {}, 14, 'dark', undefined, 'dark'))
+    expect(document.body.hasAttribute(THEME_ID_ATTRIBUTE)).toBe(false)
+    presenter.apply(snapshot('light', {}, 14, 'light', undefined, 'light'))
+    expect(document.body.hasAttribute(THEME_ID_ATTRIBUTE)).toBe(false)
+    presenter.apply(snapshot('dark', {}, 14, 'cyberpunk', undefined, 'cyberpunk'))
+    presenter.dispose()
+    expect(document.body.hasAttribute(THEME_ID_ATTRIBUTE)).toBe(false)
+  })
+
+  it('publishes the theme source: system stays system, fixed preferences publish the resolved scheme', () => {    const presenter = new ThemePresenter()
     presenter.apply(snapshot('dark', {}, 14, 'system'))
     expect(document.documentElement.getAttribute(THEME_SOURCE_ATTRIBUTE)).toBe('system')
     presenter.apply(snapshot('dark'))

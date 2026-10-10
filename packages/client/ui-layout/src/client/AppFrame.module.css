@@ -69,6 +69,16 @@
   overflow: hidden;
 }
 
+/* The main panel inside the centre column. It fills the column so a theme
+   sheet can reserve an edge band against the panel itself rather than the
+   frame's chrome, which sits as a sibling. */
+.centerBody {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
 /* macOS desktop: the frame goes transparent so window vibrancy reaches the
    sidebar column, which keeps only a translucent tint; the centre paints the
    base background itself to stay opaque. The sidebar/centre separator moves

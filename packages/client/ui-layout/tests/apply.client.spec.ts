@@ -2,6 +2,7 @@
 
 import ShortcutsService from '../../shortcuts/src/client/index.ts'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type { ConnectionState } from '@deepseek-ai/dsh-client-connection/client'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -58,6 +59,14 @@ async function bench() {
   const slotsFiber = ctx.plugin(SlotRegistry)
   ctx.provide('locale', new LocaleRuntime(ctx))
   await ctx.plugin(ShortcutsService).await()
+  // `state` is what the frame's link readout renders from; a fixed connected
+  // source is enough for a bench that never drops its transport.
+  const connectionState = createSnapshotStore<ConnectionState>('connected')
+  ctx.provide('connection', {
+    api: { settings: {} },
+    isLoopback: false,
+    state: connectionState,
+  } as never)
   // ui-theme's Appearance row binds a durable scope through these two.
   ctx.provide('remote', { $on: () => () => {} } as never)
   ctx.provide('configForms', { developerTools: { enabled: createSnapshotStore(true) }, get: () => stubConfigForm().scope } as never)
@@ -76,7 +85,7 @@ async function bench() {
 
 describe('ui-layout client apply', () => {
   it('declares its service dependencies', () => {
-    expect(inject).toEqual(['slots', 'theme', 'locale', 'shortcuts'])
+    expect(inject).toEqual(['slots', 'theme', 'locale', 'shortcuts', 'connection'])
   })
 
   it('provides ctx.layout and declares the root-scoped frame slots', async () => {
@@ -98,7 +107,12 @@ describe('ui-layout client apply', () => {
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     const entry = slots.entries('root')[0]!
-    expect(entry.inject).toBeUndefined()
+    // The frame's inject face carries the connection hook its link readout
+    // renders from, as the bare observable the renderer binds.
+    expect(Object.keys(entry.inject?.() as object)).toEqual(['hooks'])
+    const hooks = (entry.inject?.() as { hooks: { connectionState: unknown } }).hooks
+    const connection = ctx.get('connection') as { state: unknown }
+    expect(hooks.connectionState).toBe(connection.state)
     const handle = entry.store as ReturnType<typeof createLayoutStore>
     const instance = handle.create()
     expect(handle.create()).toBe(instance)
