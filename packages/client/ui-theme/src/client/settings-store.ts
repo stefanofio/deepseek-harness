@@ -4,7 +4,10 @@
  * row components read via props.useStore.
  */
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
-import { DEFAULT_FONT_SIZES, type FontFamilies, type FontSizes, type ThemePreference } from '../theme-settings.ts'
+import {
+  DEFAULT_FONT_SIZES, DEFAULT_INTENSITY,
+  type FontFamilies, type FontSizes, type IntensityLevel, type ThemePreference,
+} from '../theme-settings.ts'
 
 /** Store state mirrored from the theme snapshot. */
 export interface AppearanceRowState {
@@ -63,6 +66,48 @@ export function createFontRowStore(): EngineStoreHandle<FontRowState, FontRowAct
         if (revision <= d.revision) return
         d.fontSizes = fontSizes
         d.fontFamilies = fontFamilies
+        d.revision = revision
+      },
+    },
+  })
+}
+
+/** Store state mirrored from the theme snapshot's effect intensity. */
+export interface IntensityRowState {
+  /** Persisted intensity level. */
+  intensity: IntensityLevel
+  /**
+   * Whether the active theme ships an effect layer to scale. Mirrored rather
+   * than injected: it changes when the active theme changes, so a value
+   * captured once at injection would leave the row stale.
+   */
+  applies: boolean
+  /** Service revision; -1 until first sync so revision 0 lands as a change. */
+  revision: number
+}
+
+/** Declared action shape giving the exported factory a stable return type. */
+type IntensityRowActions = {
+  sync: (
+    draft: IntensityRowState,
+    intensity: IntensityLevel,
+    applies: boolean,
+    revision: number,
+  ) => void
+}
+
+/**
+ * Declares the effect-intensity row state and write surface.
+ * @returns the store handle.
+ */
+export function createIntensityRowStore(): EngineStoreHandle<IntensityRowState, IntensityRowActions> {
+  return defineStore({
+    init: (): IntensityRowState => ({ intensity: DEFAULT_INTENSITY, applies: false, revision: -1 }),
+    actions: {
+      sync: (d, intensity: IntensityLevel, applies: boolean, revision: number) => {
+        if (revision <= d.revision) return
+        d.intensity = intensity
+        d.applies = applies
         d.revision = revision
       },
     },

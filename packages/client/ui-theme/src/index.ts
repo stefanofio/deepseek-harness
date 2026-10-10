@@ -2,18 +2,20 @@
 import type {} from '@deepseek-ai/dsh-settings'
 
 import type { Volatile } from '@deepseek-ai/cordis'
-import type { ThemePreference } from './theme-settings.ts'
+import type { IntensityLevel, ThemePreference } from './theme-settings.ts'
 import z from '@deepseek-ai/schemastery'
 
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import { bootThemeInjections } from './boot-theme.ts'
-import { DEFAULT_PREFERENCE, FONT_SIZE_SPECS, fontSizeSchema, THEME_PREFERENCES } from './theme-settings.ts'
+import {
+  DEFAULT_INTENSITY, DEFAULT_PREFERENCE, FONT_SIZE_SPECS, fontSizeSchema, INTENSITY_LEVELS, THEME_PREFERENCES,
+} from './theme-settings.ts'
 
 export {
-  DEFAULT_FONT_SIZE, DEFAULT_PREFERENCE, FONT_SIZE_FIELD, FONT_SIZE_MAX, FONT_SIZE_MIN,
-  THEME_PREFERENCE_FIELD, THEME_PREFERENCES, THEME_SETTINGS_NAMESPACE,
-  type ThemePreference, type ThemeSettings,
+  DEFAULT_FONT_SIZE, DEFAULT_INTENSITY, DEFAULT_PREFERENCE, FONT_SIZE_FIELD, FONT_SIZE_MAX, FONT_SIZE_MIN,
+  INTENSITY_FIELD, INTENSITY_LEVELS, THEME_PREFERENCE_FIELD, THEME_PREFERENCES, THEME_SETTINGS_NAMESPACE,
+  type IntensityLevel, type ThemePreference, type ThemeSettings,
 } from './theme-settings.ts'
 
 /** Runtime preferences projected to the browser. */
@@ -32,6 +34,8 @@ export interface Config {
   codeFontFamily: Volatile<string>
   /** Sidebar terminal font list; `''` keeps the built-in stack. */
   terminalFontFamily: Volatile<string>
+  /** Effect-intensity level for themes that ship an effect layer. */
+  intensity: Volatile<IntensityLevel>
 }
 
 /** Live theme and typography preferences. */
@@ -43,6 +47,7 @@ export const Config = z.object({
   textFontFamily: z.string().default('').volatile(),
   codeFontFamily: z.string().default('').volatile(),
   terminalFontFamily: z.string().default('').volatile(),
+  intensity: z.union([...INTENSITY_LEVELS]).default(DEFAULT_INTENSITY).volatile(),
 })
 
 /** Supply the current palette before browser plugins start.
@@ -60,6 +65,6 @@ export function apply(ctx: Context, config: Config): void {
       text: config.textFontFamily.get(),
       code: config.codeFontFamily.get(),
       terminal: config.terminalFontFamily.get(),
-    }))
+    }, config.intensity.get()))
   }, { prepend: true })
 }

@@ -3,7 +3,7 @@
 import z from '@deepseek-ai/schemastery'
 
 /** Built-in preferences accepted at the registry and settings boundaries. */
-export const THEME_PREFERENCES = ['light', 'dark', 'system'] as const
+export const THEME_PREFERENCES = ['light', 'dark', 'cyberpunk', 'system'] as const
 
 /** Settings namespace owned by the theme plugin. */
 export const THEME_SETTINGS_NAMESPACE = 'ui-theme'
@@ -88,6 +88,23 @@ export function fontFamilyVariable(kind: FontRole): string {
 /** Normalized CSS font-family lists by role; `''` selects the built-in stack. */
 export type FontFamilies = Readonly<Record<FontRole, string>>
 
+/**
+ * Built-in effect-intensity levels for the cyberpunk theme, in ascending
+ * order. A theme that ships an effect layer reads the level it resolves to and
+ * scales its own variables, so the ladder is shared vocabulary rather than one
+ * theme's private enum.
+ */
+export const INTENSITY_LEVELS = ['low', 'standard', 'high', 'extreme'] as const
+
+/** Field carrying the effect-intensity level. */
+export const INTENSITY_FIELD = 'intensity'
+
+/** Effect intensity applied when the user-settings document has no override. */
+export const DEFAULT_INTENSITY: IntensityLevel = 'standard'
+
+/** Durable effect-intensity level. */
+export type IntensityLevel = typeof INTENSITY_LEVELS[number]
+
 /** Durable theme section shared by the Host schema and the browser scope. */
 export interface ThemeSettings {
   /** Selected built-in preference. */
@@ -104,6 +121,12 @@ export interface ThemeSettings {
   codeFontFamily: string
   /** Sidebar terminal fonts placed before the built-in terminal stack; `''` keeps the built-in stack. */
   terminalFontFamily: string
+  /**
+   * How far a theme's effect layer is pushed. Only themes that ship one read
+   * it; the value is still stored for every preference so switching away and
+   * back does not lose the reader's choice.
+   */
+  intensity: IntensityLevel
 }
 
 /**
@@ -144,6 +167,7 @@ export const ThemeSettingsSchema: z<ThemeSettings> = z.object({
   [FONT_FAMILY_FIELDS.text]: z.string().default(''),
   [FONT_FAMILY_FIELDS.code]: z.string().default(''),
   [FONT_FAMILY_FIELDS.terminal]: z.string().default(''),
+  [INTENSITY_FIELD]: z.union([...INTENSITY_LEVELS]).default(DEFAULT_INTENSITY),
 })
 
 /** CSS Fonts generic and system family keywords, which must stay unquoted. */

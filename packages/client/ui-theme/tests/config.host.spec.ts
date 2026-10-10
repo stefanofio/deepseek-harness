@@ -5,7 +5,7 @@ import * as HostPlugin from '../src/index.ts'
 import { liveConfig, omitsGeneratedPage } from '../../../settings/settings/tests/live-config.ts'
 import { plainConfig } from '../../../settings/settings/src/schema.ts'
 import {
-  DEFAULT_PREFERENCE, Config, apply,
+  DEFAULT_INTENSITY, DEFAULT_PREFERENCE, Config, apply,
 } from '@deepseek-ai/dsh-client-ui-theme'
 
 
@@ -27,16 +27,20 @@ describe('ui-theme host', () => {
     const ctx = new Context()
     const configuration = await liveConfig(ctx, { Config, apply })
     const { fiber } = configuration
-    expect(plainConfig(configuration.fiber.config)).toEqual({ preference: DEFAULT_PREFERENCE, fontSize: 14, codeFontSize: 11, terminalFontSize: 13, textFontFamily: '', codeFontFamily: '', terminalFontFamily: '' })
-    await configuration.update({ preference: 'dark', fontSize: 10, codeFontSize: 16, codeFontFamily: '"Iosevka"' })
-    expect(plainConfig(configuration.fiber.config)).toEqual({ preference: 'dark', fontSize: 10, codeFontSize: 16, terminalFontSize: 13, textFontFamily: '', codeFontFamily: '"Iosevka"', terminalFontFamily: '' })
+    expect(plainConfig(configuration.fiber.config)).toEqual({ preference: DEFAULT_PREFERENCE, fontSize: 14, codeFontSize: 11, terminalFontSize: 13, textFontFamily: '', codeFontFamily: '', terminalFontFamily: '', intensity: DEFAULT_INTENSITY })
+    await configuration.update({ preference: 'dark', fontSize: 10, codeFontSize: 16, codeFontFamily: '"Iosevka"', intensity: 'extreme' })
+    expect(plainConfig(configuration.fiber.config)).toEqual({ preference: 'dark', fontSize: 10, codeFontSize: 16, terminalFontSize: 13, textFontFamily: '', codeFontFamily: '"Iosevka"', terminalFontFamily: '', intensity: 'extreme' })
     await configuration.update({ fontSize: 22 })
-    expect(plainConfig(configuration.fiber.config)).toMatchObject({ preference: 'dark', fontSize: 22 })
+    expect(plainConfig(configuration.fiber.config)).toEqual({
+      preference: 'dark', fontSize: 22, codeFontSize: 16, terminalFontSize: 13,
+      textFontFamily: '', codeFontFamily: '"Iosevka"', terminalFontFamily: '', intensity: 'extreme',
+    })
     await expect(configuration.update({ preference: 'sepia' })).rejects.toThrow()
     await expect(configuration.update({ fontSize: 9 })).rejects.toThrow()
     await expect(configuration.update({ fontSize: 23 })).rejects.toThrow()
     await expect(configuration.update({ codeFontSize: 17 })).rejects.toThrow()
     await expect(configuration.update({ terminalFontSize: 9 })).rejects.toThrow()
+    await expect(configuration.update({ intensity: 'ludicrous' })).rejects.toThrow()
     await fiber.dispose()
   })
 

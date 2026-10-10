@@ -30,7 +30,7 @@ describe('ThemeRuntime', () => {
     // jsdom matchMedia is absent; system resolves to light.
     expect(snapshot.active.id).toBe('light')
     expect(snapshot.active.colorScheme).toBe('light')
-    expect(snapshot.themes.map(t => t.id)).toEqual(['light', 'dark'])
+    expect(snapshot.themes.map(t => t.id)).toEqual(['light', 'dark', 'cyberpunk'])
   })
 
   it('seeds the initial font size from the boot-script body variable, ignoring junk', () => {
@@ -90,7 +90,7 @@ describe('ThemeRuntime', () => {
 
   it('adopts a published Host font size without writing it back', () => {
     const { theme, events, host } = make()
-    host.publish({ status: 'ready', value: { preference: 'system', fontSize: 12, codeFontSize: 15, terminalFontSize: 18, textFontFamily: '', codeFontFamily: '', terminalFontFamily: '' }, revision: 1, writable: true })
+    host.publish({ status: 'ready', value: { preference: 'system', fontSize: 12, codeFontSize: 15, terminalFontSize: 18, textFontFamily: '', codeFontFamily: '', terminalFontFamily: '', intensity: 'standard' }, revision: 1, writable: true })
     expect(theme.getTheme().fontSizes).toEqual({ text: 12, code: 15, terminal: 18 })
     expect(events).toHaveLength(1)
     expect(host.set).not.toHaveBeenCalled()
@@ -120,10 +120,10 @@ describe('ThemeRuntime', () => {
 
   it('adopts published Host font lists, normalizing hand-edited values, without writing them back', () => {
     const { theme, events, host } = make()
-    host.publish({ status: 'ready', value: { preference: 'system', fontSize: 14, codeFontSize: 11, terminalFontSize: 13, textFontFamily: 'Inter', codeFontFamily: '"Fira Code"', terminalFontFamily: '' }, revision: 1, writable: true })
+    host.publish({ status: 'ready', value: { preference: 'system', fontSize: 14, codeFontSize: 11, terminalFontSize: 13, textFontFamily: 'Inter', codeFontFamily: '"Fira Code"', terminalFontFamily: '', intensity: 'standard' }, revision: 1, writable: true })
     expect(theme.getTheme().fontFamilies).toEqual({ text: '"Inter"', code: '"Fira Code"', terminal: '' })
     expect(events).toHaveLength(1)
-    host.publish({ value: { preference: 'system', fontSize: 14, codeFontSize: 11, terminalFontSize: 13, textFontFamily: '"Inter"', codeFontFamily: 'Fira Code', terminalFontFamily: '' }, revision: 2 })
+    host.publish({ value: { preference: 'system', fontSize: 14, codeFontSize: 11, terminalFontSize: 13, textFontFamily: '"Inter"', codeFontFamily: 'Fira Code', terminalFontFamily: '', intensity: 'standard' }, revision: 2 })
     expect(events).toHaveLength(1)
     expect(host.set).not.toHaveBeenCalled()
   })
@@ -146,17 +146,17 @@ describe('ThemeRuntime', () => {
 
   it('adopts a published Host section without writing it back', () => {
     const { theme, events, host } = make()
-    host.publish({ status: 'ready', value: { preference: 'dark', fontSize: 14, codeFontSize: 11, terminalFontSize: 13, textFontFamily: '', codeFontFamily: '', terminalFontFamily: '' }, revision: 1, writable: true })
+    host.publish({ status: 'ready', value: { preference: 'dark', fontSize: 14, codeFontSize: 11, terminalFontSize: 13, textFontFamily: '', codeFontFamily: '', terminalFontFamily: '', intensity: 'standard' }, revision: 1, writable: true })
     expect(theme.getTheme().preference).toBe('dark')
     expect(events).toHaveLength(1)
     expect(host.set).not.toHaveBeenCalled()
-    host.publish({ value: { preference: 'dark', fontSize: 14, codeFontSize: 11, terminalFontSize: 13, textFontFamily: '', codeFontFamily: '', terminalFontFamily: '' }, revision: 2 })
+    host.publish({ value: { preference: 'dark', fontSize: 14, codeFontSize: 11, terminalFontSize: 13, textFontFamily: '', codeFontFamily: '', terminalFontFamily: '', intensity: 'standard' }, revision: 2 })
     expect(events).toHaveLength(1)
   })
 
   it('holds its own changes while writes are pending, then converges on the durable section', async () => {
     const { theme, host } = make()
-    const section = { preference: 'system' as const, fontSize: 14, codeFontSize: 11, terminalFontSize: 13, textFontFamily: '', codeFontFamily: '', terminalFontFamily: '' }
+    const section = { preference: 'system' as const, fontSize: 14, codeFontSize: 11, terminalFontSize: 13, textFontFamily: '', codeFontFamily: '', terminalFontFamily: '', intensity: 'standard' as const }
     host.publish({ status: 'ready', value: section, revision: 1, writable: true })
     const write = Promise.withResolvers<boolean>()
     host.set.mockReturnValue(write.promise)
@@ -171,7 +171,7 @@ describe('ThemeRuntime', () => {
 
   it('adopts a section already standing at construction', () => {
     const host = stubConfigForm<ThemeSettings>()
-    host.publish({ status: 'ready', value: { preference: 'dark', fontSize: 14, codeFontSize: 11, terminalFontSize: 13, textFontFamily: '', codeFontFamily: '', terminalFontFamily: '' }, revision: 1, writable: true })
+    host.publish({ status: 'ready', value: { preference: 'dark', fontSize: 14, codeFontSize: 11, terminalFontSize: 13, textFontFamily: '', codeFontFamily: '', terminalFontFamily: '', intensity: 'standard' }, revision: 1, writable: true })
     const { theme } = make(host)
     expect(theme.getTheme().preference).toBe('dark')
   })
@@ -186,12 +186,12 @@ describe('ThemeRuntime', () => {
   it('registered themes join the snapshot; disposing the active one resets to default', () => {
     const { theme, events, host } = make()
     const dispose = theme.register({ id: 'sepia', colorScheme: 'light', tokens: { '--dsw-alias-bg-base': 'red' } })
-    expect(theme.getTheme().themes.map(t => t.id)).toEqual(['light', 'dark', 'sepia'])
+    expect(theme.getTheme().themes.map(t => t.id)).toEqual(['light', 'dark', 'cyberpunk', 'sepia'])
     theme.setTheme('sepia')
     expect(theme.getTheme().active.tokens['--dsw-alias-bg-base']).toBe('red')
     dispose()
     expect(theme.getTheme().preference).toBe('system')
-    expect(theme.getTheme().themes.map(t => t.id)).toEqual(['light', 'dark'])
+    expect(theme.getTheme().themes.map(t => t.id)).toEqual(['light', 'dark', 'cyberpunk'])
     // Custom ids are in-process extension themes; only the built-in product
     // preferences cross the Host settings schema.
     expect(host.set).not.toHaveBeenCalled()
@@ -201,8 +201,56 @@ describe('ThemeRuntime', () => {
     expect(events.length).toBe(3)
   })
 
-  it('disposing an inactive theme keeps the active preference', () => {
-    const { theme } = make()
+  describe('cyberpunk built-in', () => {
+    it('registers as a dark-scheme theme carrying both alias and effect tokens', () => {
+      const { theme } = make()
+      const cyberpunk = theme.getTheme().themes.find(t => t.id === 'cyberpunk')
+      expect(cyberpunk).toBeDefined()
+      expect(cyberpunk?.colorScheme).toBe('dark')
+      // Alias repaint plus the effect parameters the effect sheet reads; both
+      // groups must survive into the registry or the theme silently half-applies.
+      // The chassis is the game's own purple-leaning backdrop, not a neutral black.
+      expect(cyberpunk?.tokens['--dsw-alias-bg-base']).toBe('#100e24')
+      expect(cyberpunk?.tokens['--dsh-cyber-neon']).toBe('#ff6e73')
+      expect(cyberpunk?.tokens['--dsh-cyber-neon-alt']).toBe('#76fdf7')
+      expect(cyberpunk?.tokens['--dsh-cyber-maroon']).toBe('#2e101a')
+      // The scanline pitch is an intensity *scale*, owned by the effect sheet:
+      // publishing it as a token would pin it inline and the ladder could not
+      // vary it by level.
+      expect(cyberpunk?.tokens['--dsh-cyber-scanline-size']).toBeUndefined()
+      expect(cyberpunk?.tokens['--dsh-cyber-scanline-alpha']).toBeUndefined()
+    })
+
+    it('selects like any other theme and drives the dark palette', () => {
+      const { theme, events, host } = make()
+      theme.setTheme('cyberpunk')
+      expect(theme.getTheme().preference).toBe('cyberpunk')
+      expect(theme.getTheme().active.colorScheme).toBe('dark')
+      // A built-in preference, so it persists through the Host schema.
+      expect(host.set).toHaveBeenCalledWith('preference', 'cyberpunk')
+      expect(events).toHaveLength(1)
+    })
+
+    it('keeps every token legible in both modes (the theme is dark-only)', () => {
+      // Overrides are stored per scheme; a value present in only one mode would
+      // blank the token if the scheme flipped underneath a fixed preference.
+      const { theme } = make()
+      const cyberpunk = theme.getTheme().themes.find(t => t.id === 'cyberpunk')
+      for (const [name, value] of Object.entries(cyberpunk?.tokens ?? {})) {
+        expect(value, name).toBeTypeOf('string')
+        expect(value, name).not.toBe('')
+      }
+    })
+
+    it('exposes its effect variables through the inspect directory', () => {
+      const { theme } = make()
+      const names = theme.exportInspectTokens().map(token => token.name)
+      expect(names).toContain('--dsh-cyber-neon')
+      expect(names).toContain('--dsh-cyber-flicker-duration')
+    })
+  })
+
+  it('disposing an inactive theme keeps the active preference', () => {    const { theme } = make()
     const dispose = theme.register({ id: 'sepia', colorScheme: 'light', tokens: {} })
     theme.setTheme('dark')
     dispose()

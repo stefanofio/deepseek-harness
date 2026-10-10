@@ -1,0 +1,875 @@
+/* Cyberpunk effect layer — neon, board grid, CRT scanlines, aberration, and
+ * glitch.
+ *
+ * Every rule here is scoped to `body[data-dsh-theme='cyberpunk']`, so the
+ * light, dark, and system palettes are untouched: without the attribute the
+ * sheet contributes nothing. The attribute is set by the theme presenter from
+ * the active theme definition (see cyberpunk.ts).
+ *
+ * This is a deliberately loud, full retro-terminal treatment: a scanline veil,
+ * a travelling CRT roll bar, tube flicker, chromatic aberration, grid vignettes,
+ * and periodic glitch stutter. The readability floor is that nothing *moves*:
+ * text never translates, scales, or loses contrast enough to break reading, so
+ * long transcripts stay followable. Intensity rides luminance and color
+ * fringing rather than geometry.
+ *
+ * All timing and pitch values come from `--dsh-cyber-*` custom properties the
+ * theme definition publishes, so there is one place to retune the theme. */
+
+/* The board, built the way the game's own menus are: a maroon wash across the
+   top falling to near-black, a soft bloom of the interface blue, and the
+   hairline grid over the top of all of it. The maroon is what stops the chrome
+   reading as flat black.
+
+   It is painted on the surfaces the shell actually renders, not on `body`: the
+   frame and the centre column each paint an opaque base background over the
+   document, so a `body`-level gradient never reaches the screen. The two
+   surfaces that cover the viewport carry the same treatment, which is also what
+   keeps the wash continuous across the column seam. */
+/* The shell nests several opaque layers that each paint the base background —
+   the frame, the centre column, and the conversation panel inside it — so a
+   wash on the outermost is covered by the one within.
+
+   The board is a property pair rather than a selector list, so the layers that
+   cover the transcript can each adopt it without this sheet naming the shell's
+   private classes, and a surface that paints something else is untouched. */
+body[data-dsh-theme='cyberpunk'] {
+  --dsh-cyber-board: var(--dsw-alias-bg-base);
+  /* Deep red at the top falling to a dark maroon-blue: the wash is the theme's
+     strongest colour statement, so it is a real gradient between two hues
+     rather than a single tint fading to transparent. */
+  --dsh-cyber-board-image: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--dsh-cyber-maroon) 92%, transparent) 0%,
+    color-mix(in srgb, #4a1220 70%, var(--dsh-cyber-board)) 34%,
+    color-mix(in srgb, #1a1038 55%, var(--dsh-cyber-board)) 68%,
+    var(--dsh-cyber-board) 100%
+  );
+}
+
+/* The layers that cover the transcript adopt the board, so neither hides the
+   other. The conversation panel is addressed by its own phase attribute, which
+   every conversation state carries, rather than by a hashed class name.
+
+   The composer's fill is retuned alongside: its default is an opaque neutral
+   grey from the base palette, which would otherwise sit on the wash as an
+   unrelated slab and read as the gradient leaking through it. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport],
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport] [data-phase] {
+  background-color: var(--dsh-cyber-board);
+  background-image: var(--dsh-cyber-board-image);
+}
+
+/* The composer's fill is retuned through the token it reads. This must match
+   the base sheet's own selector: it declares the token on the dark-palette
+   body attribute and loads after this sheet, so a bare `body[data-dsh-theme]`
+   would lose to it on specificity regardless of order. */
+body[data-dsh-theme='cyberpunk'][data-ds-dark-theme] {
+  --dsw-specific-input-major: color-mix(in srgb, var(--dsh-cyber-maroon) 34%, var(--dsw-alias-bg-layer-2));
+}
+
+/* --- Board grid (side panels) ------------------------------------------ */
+
+/* The grid belongs on the instrument panels, not behind the transcript: over a
+   long conversation it competes with the text for attention and costs
+   readability, while on a dock or a sidebar it reads as the chrome it is. The
+   right column takes it, and the viewport keeps the wash alone. */
+body[data-dsh-theme='cyberpunk'] [data-rightbar-col] {
+  background-color: var(--dsh-cyber-board);
+  background-image:
+    linear-gradient(var(--dsh-cyber-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--dsh-cyber-grid-line) 1px, transparent 1px);
+  background-size: var(--dsh-cyber-grid-size) var(--dsh-cyber-grid-size);
+  background-attachment: fixed;
+}
+
+/* --- Section titles and headings -------------------------------------- */
+
+/* Neon sign treatment for the chrome that names a region: the game's crimson,
+   uppercase, chromatic aberration from two offset copies of the glyph, a deep
+   halo, and a phosphor pulse. The fringe uses Night City's deep crimson and
+   teal rather than a hot pink and sky blue, so the edge reads as printed ink
+   separating rather than a magenta highlight. */
+/* The game's own section headers are restrained: small, letter-spaced, in a
+   desaturated red, sitting on a full-width hairline that separates one block of
+   settings from the next. The rule does the dividing, not the type — heavy glow
+   on a header that repeats down a long page reads as noise, and it competes
+   with the content it introduces. */
+body[data-dsh-theme='cyberpunk'] h1,
+body[data-dsh-theme='cyberpunk'] h2,
+body[data-dsh-theme='cyberpunk'] h3,
+body[data-dsh-theme='cyberpunk'] [data-cyber-title] {
+  color: var(--dsh-cyber-title);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  /* The hairline under the header, with the accent corner the game puts at the
+     left of each block: a short bright segment where the rule begins. */
+  border-bottom: 1px solid color-mix(in srgb, var(--dsh-cyber-neon) 30%, transparent);
+  padding-bottom: 6px;
+  background-image: linear-gradient(
+    to right,
+    var(--dsh-cyber-neon) 0,
+    var(--dsh-cyber-neon) 34px,
+    transparent 34px
+  );
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 100% 2px;
+}
+
+/* The single most important title on a surface (a settings section, a page
+   heading) keeps a restrained glow, so hierarchy survives the flat treatment
+   above without every header shouting. */
+body[data-dsh-theme='cyberpunk'] h1 {
+  color: var(--dsh-cyber-neon);
+  /* The one heading that carries a halo, composed from the level's own glow
+     scales: the ladder has to move something a reader can see, and a halo on
+     the top-level title is visible at a glance where a veil is not. */
+  text-shadow: var(--dsh-cyber-glow-tight), var(--dsh-cyber-glow-wide);
+}
+
+/* --- Body text joins in, faintly -------------------------------------- */
+
+/* Paragraph content carries a trace of the same fringing so the whole surface
+   reads as one mistuned tube. The offset is sub-pixel: enough to register as
+   color, not enough to displace a glyph. No motion, so reading is unaffected. */
+body[data-dsh-theme='cyberpunk'] p,
+body[data-dsh-theme='cyberpunk'] li {
+  text-shadow:
+    0.4px 0 0 color-mix(in srgb, var(--dsh-cyber-aberration-red) 34%, transparent),
+    -0.4px 0 0 color-mix(in srgb, var(--dsh-cyber-aberration-teal) 26%, transparent);
+}
+
+/* Monospace stays crisp: a fringe on code hurts character recognition far more
+   than it helps the aesthetic, and code blocks are the densest text on screen. */
+body[data-dsh-theme='cyberpunk'] pre,
+body[data-dsh-theme='cyberpunk'] code,
+body[data-dsh-theme='cyberpunk'] pre *,
+body[data-dsh-theme='cyberpunk'] code * {
+  text-shadow: none;
+}
+
+/* --- Interface-blue accents -------------------------------------------- */
+
+/* The game's UI glow blue marks the things you can act on or that carry
+   emphasis, against the warm red chrome. These are the few places a reader
+   interacts, so the accent is meaningful rather than decorative.
+
+   The link color flows through the product's own link alias, so every anchor
+   in the client — transcript prose, cards, settings copy — picks it up without
+   this sheet targeting each surface. */
+/* --- Effect intensity --------------------------------------------------- */
+
+/* Four ladders over the same effect set. Each level redefines the parameters
+   the sheet reads, so the effects themselves are written once and the level
+   only moves their magnitudes; a new level is a block of values rather than a
+   second copy of every rule.
+
+   `low` keeps the palette and drops almost all motion, `extremely` adds the
+   heavy set at the end of this file. `standard` is the default so arriving at
+   the dial does not silently change what an existing reader sees. */
+body[data-dsh-theme='cyberpunk'][data-dsh-intensity='low'] {
+  --dsh-cyber-scanline-size: 0px;
+  --dsh-cyber-scanline-alpha: 0.0;
+  --dsh-cyber-glow-tight: 0 0 0 transparent;
+  --dsh-cyber-glow-wide: 0 0 0 transparent;
+  --dsh-cyber-glow-cyan: 0 0 0 transparent;
+  --dsh-cyber-aberration: 0px;
+  --dsh-cyber-roll-opacity: 0;
+  --dsh-cyber-sweep-interval: 300s;
+  --dsh-cyber-glitch-opacity: 0;
+  --dsh-cyber-curvature: 0;
+}
+
+body[data-dsh-theme='cyberpunk'][data-dsh-intensity='standard'] {
+  --dsh-cyber-scanline-size: 3px;
+  --dsh-cyber-scanline-alpha: 0.10;
+  --dsh-cyber-glow-tight: 0 0 4px color-mix(in srgb, var(--dsh-cyber-neon) 80%, transparent);
+  --dsh-cyber-glow-wide: 0 0 14px color-mix(in srgb, var(--dsh-cyber-neon) 45%, transparent);
+  --dsh-cyber-glow-cyan: 0 0 10px color-mix(in srgb, var(--dsh-cyber-blue) 65%, transparent);
+  --dsh-cyber-aberration: 0.8px;
+  --dsh-cyber-roll-opacity: 0.5;
+  --dsh-cyber-sweep-interval: 180s;
+  --dsh-cyber-glitch-opacity: 0.5;
+  --dsh-cyber-curvature: 0.5;
+}
+
+/* The level the theme shipped with before the dial existed. */
+body[data-dsh-theme='cyberpunk'][data-dsh-intensity='high'] {
+  --dsh-cyber-scanline-size: 5px;
+  --dsh-cyber-scanline-alpha: 0.26;
+  --dsh-cyber-glow-tight: 0 0 8px color-mix(in srgb, var(--dsh-cyber-neon) 95%, transparent);
+  --dsh-cyber-glow-wide: 0 0 30px color-mix(in srgb, var(--dsh-cyber-neon) 65%, transparent), 0 0 60px color-mix(in srgb, var(--dsh-cyber-neon) 30%, transparent);
+  --dsh-cyber-glow-cyan: 0 0 18px color-mix(in srgb, var(--dsh-cyber-blue) 80%, transparent), 0 0 40px color-mix(in srgb, var(--dsh-cyber-blue) 40%, transparent);
+  --dsh-cyber-aberration: 2.2px;
+  --dsh-cyber-roll-opacity: 0.8;
+  --dsh-cyber-sweep-interval: 120s;
+  --dsh-cyber-glitch-opacity: 0.7;
+  --dsh-cyber-curvature: 1.2;
+}
+
+/* Extreme keeps every high-level magnitude and adds the effects that only
+   exist here, so the top of the dial is a different experience rather than the
+   same one louder. */
+body[data-dsh-theme='cyberpunk'][data-dsh-intensity='extreme'] {
+  --dsh-cyber-scanline-size: 7px;
+  --dsh-cyber-scanline-alpha: 0.45;
+  --dsh-cyber-glow-tight: 0 0 12px var(--dsh-cyber-neon), 0 0 4px #fff;
+  --dsh-cyber-glow-wide: 0 0 46px color-mix(in srgb, var(--dsh-cyber-neon) 85%, transparent), 0 0 90px color-mix(in srgb, var(--dsh-cyber-neon) 45%, transparent);
+  --dsh-cyber-glow-cyan: 0 0 26px var(--dsh-cyber-blue), 0 0 70px color-mix(in srgb, var(--dsh-cyber-blue) 60%, transparent);
+  --dsh-cyber-aberration: 4px;
+  --dsh-cyber-roll-opacity: 1.4;
+  --dsh-cyber-sweep-interval: 75s;
+  --dsh-cyber-glitch-opacity: 1;
+  --dsh-cyber-curvature: 2.4;
+}
+
+body[data-dsh-theme='cyberpunk'] {
+  --dsw-alias-link: var(--dsh-cyber-blue);
+  /* The blue also drives the focus ring, so the keyboard's position reads in
+     the same register as everything else that is actionable. */
+  --dsw-focus-ring-color: var(--dsh-cyber-blue);
+}
+
+/* Emphasis carries the accent too: bold is where the transcript tells the
+   reader something matters, which is exactly the game's use of this blue. */
+body[data-dsh-theme='cyberpunk'] strong,
+body[data-dsh-theme='cyberpunk'] b {
+  color: var(--dsh-cyber-blue);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--dsh-cyber-blue) 45%, transparent);
+}
+
+/* Inline code takes the blue as well, so identifiers stand out from prose
+   without competing with the crimson chrome. */
+body[data-dsh-theme='cyberpunk'] :not(pre) > code {
+  color: var(--dsh-cyber-blue);
+}
+
+/* --- Frame and panel edges -------------------------------------------- */
+
+/* Lit hairlines on the structural edges, with a teal bloom that reads as a
+   powered edge rather than a drawn one. */
+body[data-dsh-theme='cyberpunk'] [data-rightbar-col],
+body[data-dsh-theme='cyberpunk'] [data-shell-leading] {
+  border-color: color-mix(in srgb, var(--dsh-cyber-neon-alt) 55%, transparent);
+  box-shadow: var(--dsh-cyber-glow-cyan);
+}
+
+/* --- Viewport corner brackets ------------------------------------------ */
+
+/* The theme chrome below is hidden by default and revealed only while the
+   cyberpunk sheet is active. Hiding it here rather than conditionally rendering
+   it in the frame keeps ui-layout free of any one theme's identity, and the
+   rule lives in the sheet that claims the elements. */
+[data-cyber-rollbar],
+[data-cyber-rule],
+[data-cyber-sweep],
+[data-cyber-linkframe],
+[data-cyber-viewport]::before,
+[data-cyber-viewport]::after {
+  display: none;
+}
+
+/* The centre column is the positioning context for the corner frame and the
+   roll band, both of which are absolutely positioned against it. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport] {
+  position: relative;
+}
+
+body[data-dsh-theme='cyberpunk'] [data-cyber-rollbar],
+body[data-dsh-theme='cyberpunk'] [data-cyber-rule],
+body[data-dsh-theme='cyberpunk'] [data-cyber-sweep],
+body[data-dsh-theme='cyberpunk'] [data-cyber-linkframe] {
+  display: block;
+}
+
+/* The corner pseudo-elements set their own display in their rules below; only
+   their default-hidden state is declared here. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport]::before,
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport]::after {
+  display: block;
+}
+
+body[data-dsh-theme='cyberpunk'] [data-cyber-linkframe]::before {
+  display: inline-block;
+}
+
+/* The corner brackets, the way the game frames a terminal or scanner readout.
+   Only the bottom-right carries a caption: the top-left one sat in the same
+   band the session header occupies, so the two fought for the same strip and
+   the frame read as clutter. The remaining caption is read from the element's
+   own `data-cyber-frame` attribute, so the treatment costs one attribute and no
+   extra markup. `pointer-events: none` keeps the brackets from intercepting a
+   click near the viewport edge. */
+/* The frame sits at the viewport's own edges, below everything: raising the
+   bottom border to dodge the composer only moved the line up into the chat,
+   which reads as a stray rule across the transcript. Instead the reserved band
+   is *given* to the frame by lifting the conversation stack off the bottom
+   edge, so the border is the outermost thing on screen and the composer,
+   stats, and link readout all sit inside it.
+
+   `--dsh-cyber-frame-inset` is that band. The stack keeps its own layout; it
+   is only translated up, so nothing inside it reflows. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport] {
+  --dsh-cyber-frame-inset: 10px;
+  --dsh-cyber-frame-band: 18px;
+}
+
+/* The viewport body is inset from the bottom by the frame's band, which is what
+   puts the border below the composer instead of through it. The band is padding
+   rather than a translation so no descendant's own layout is disturbed. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport-body] {
+  padding-bottom: var(--dsh-cyber-frame-band);
+  box-sizing: border-box;
+}
+
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport]::before,
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport]::after {
+  content: '';
+  position: absolute;
+  top: var(--dsh-cyber-frame-inset);
+  right: var(--dsh-cyber-frame-inset);
+  bottom: var(--dsh-cyber-frame-inset);
+  left: var(--dsh-cyber-frame-inset);
+  pointer-events: none;
+  z-index: 41;
+}
+
+/* Top-left keeps its hairlines but no text. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport]::before {
+  border-top: 1px solid color-mix(in srgb, var(--dsh-cyber-neon) 62%, transparent);
+  border-left: 1px solid color-mix(in srgb, var(--dsh-cyber-neon) 62%, transparent);
+}
+
+/* The bottom-right corner carries the link readout, and its bracket closes the
+   frame. The caption is a real element rather than `attr()` content because it
+   is a liveness indicator: it renders the live transport state, which CSS
+   cannot read. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport]::after {
+  border-bottom: 1px solid color-mix(in srgb, var(--dsh-cyber-neon) 62%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--dsh-cyber-neon) 62%, transparent);
+}
+
+/* The readout itself, pinned to the bottom-right corner of the viewport. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-linkframe] {
+  position: absolute;
+  right: 24px;
+  /* Sits on the bottom bracket, inside the frame's own inset. */
+  bottom: calc(var(--dsh-cyber-frame-inset) + 7px);
+  z-index: 42;
+  pointer-events: none;
+  color: var(--dsh-cyber-neon);
+  font-family: var(--ds-font-family-code);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+/* A live dot beside the readout, so transport health is legible at a glance
+   without reading the label. It inherits the state color set below. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-linkframe]::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 7px;
+  vertical-align: middle;
+  /* The dot owns the accent blue rather than inheriting the label's yellow, so
+     the pulse reads as the live link and the text as its status. */
+  background: var(--dsh-cyber-blue);
+  box-shadow: 0 0 7px var(--dsh-cyber-blue);
+}
+
+/* One color per transport state. `connected` pulses — that is the heartbeat:
+   motion here means the harness is answering, and its absence is the signal. */
+/* The readout text is the game's hazard yellow, which is where its interface
+   puts status; the heartbeat dot stays blue so the pulse reads as the live
+   signal, distinct from the label it sits beside. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport][data-cyber-link='connected'] [data-cyber-linkframe] {
+  color: var(--dsh-cyber-hazard);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--dsh-cyber-hazard) 65%, transparent);
+}
+
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport][data-cyber-link='connected'] [data-cyber-linkframe]::before {
+  color: var(--dsh-cyber-blue);
+  animation: dsh-cyber-heartbeat 1.8s ease-in-out infinite;
+}
+
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport][data-cyber-link='connecting'] [data-cyber-linkframe] {
+  color: var(--dsh-cyber-phosphor);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--dsh-cyber-phosphor) 70%, transparent);
+}
+
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport][data-cyber-link='connecting'] [data-cyber-linkframe]::before {
+  animation: dsh-cyber-heartbeat 0.7s ease-in-out infinite;
+}
+
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport][data-cyber-link='disconnected'] [data-cyber-linkframe] {
+  color: var(--dsh-cyber-brand);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--dsh-cyber-brand) 80%, transparent);
+}
+
+/* Lost transport does not pulse: a steady alarm reads as a fault, where motion
+   would read as activity. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport][data-cyber-link='disconnected'] [data-cyber-linkframe]::before {
+  box-shadow: 0 0 12px currentColor;
+}
+
+/* The game frames its panels with an inset rule down one side, drawn in the
+   saturated red rather than the label coral. On the viewport it runs the full
+   height just inside the left bracket, which is what gives the frame its
+   asymmetric, instrument-panel weight instead of reading as a plain box. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-rule] {
+  position: absolute;
+  top: 26px;
+  bottom: 26px;
+  left: 14px;
+  width: 2px;
+  pointer-events: none;
+  z-index: 41;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--dsh-cyber-brand) 12%,
+    var(--dsh-cyber-brand) 88%,
+    transparent 100%
+  );
+  box-shadow: 0 0 8px color-mix(in srgb, var(--dsh-cyber-brand) 70%, transparent);
+}
+
+/* --- Chrome flicker and glitch ---------------------------------------- */
+
+/* A CRT mains-hum flicker on the frame edge. Stepped keyframes produce
+   occasional dropouts rather than a smooth throb, which reads as a failing
+   tube instead of a pulsing highlight. */
+body[data-dsh-theme='cyberpunk'] [data-shell-overlay] {
+  animation: dsh-cyber-flicker var(--dsh-cyber-flicker-duration) steps(1, end) infinite;
+}
+
+/* A horizontal tear: two abrupt phase shifts per cycle, far enough apart to
+   read as a signal fault rather than a broken frame. Applied to the overlay's
+   children so it shifts painter content without clipping layout geometry. */
+body[data-dsh-theme='cyberpunk'] [data-shell-overlay] > * {
+  animation: dsh-cyber-glitch var(--dsh-cyber-glitch-duration) steps(1, end) infinite;
+  /* The tear is a magnitude, not a toggle: at the lower levels it resolves to
+     no visible displacement rather than being switched off in a second rule. */
+  opacity: var(--dsh-cyber-glitch-opacity, 1);
+}
+
+/* --- The thinking row's leading glyph ---------------------------------- */
+
+/* The reasoning row is identified by its own variant attribute rather than a
+   class name, so this survives the component's CSS-module renaming. Only the
+   glyph and title animate; reasoning content stays static and legible. */
+body[data-dsh-theme='cyberpunk'] [data-variant='think'][data-state='running'] svg {
+  color: var(--dsh-cyber-neon-alt);
+  filter: drop-shadow(0 0 6px var(--dsh-cyber-neon-alt)) drop-shadow(0 0 14px var(--dsh-cyber-neon-alt));
+  animation: dsh-cyber-pulse var(--dsh-cyber-pulse-duration) ease-in-out infinite;
+}
+
+/* The running title flickers like a sign with a bad ballast, in the amber of a
+   decaying phosphor readout rather than the chrome's crimson. */
+body[data-dsh-theme='cyberpunk'] [data-variant='think'][data-state='running'] [class*='title'] {
+  color: var(--dsh-cyber-phosphor);
+  /* The status readout takes the chromatic fringe, composed from the level's
+     offset scale. It is short, monospace, and read at a glance, so the fringe
+     costs nothing here and makes the ladder legible at every step — a wider
+     offset is visible immediately, where a veil's opacity is not. */
+  text-shadow:
+    calc(var(--dsh-cyber-aberration) * -1) 0 0 var(--dsh-cyber-aberration-red),
+    var(--dsh-cyber-aberration) 0 0 var(--dsh-cyber-aberration-teal),
+    0 0 6px color-mix(in srgb, var(--dsh-cyber-phosphor) 80%, transparent),
+    0 0 20px color-mix(in srgb, var(--dsh-cyber-phosphor) 45%, transparent);
+  animation: dsh-cyber-flicker var(--dsh-cyber-flicker-duration) steps(1, end) infinite;
+}
+
+/* --- Side terminal ------------------------------------------------------ */
+
+/* The terminal is a deck you jack into, so it reads as its own instrument:
+   a warm dark screen with a blue phosphor bloom, separated from the main
+   viewport by the game's inset red rule down its inner edge. Nothing here
+   touches the emulator's buffer or its program-set colors; this is chrome. */
+body[data-dsh-theme='cyberpunk'] [data-sidebar-terminal] {
+  position: relative;
+  background-color: color-mix(in srgb, var(--dsh-cyber-maroon) 22%, var(--dsw-alias-bg-base));
+  box-shadow: inset 0 0 42px color-mix(in srgb, #000 55%, transparent);
+}
+
+/* The inner edge rule, drawn on the pane rather than as a border so it sits
+   over the terminal's own background instead of shrinking the screen. */
+body[data-dsh-theme='cyberpunk'] [data-sidebar-terminal]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--dsh-cyber-brand) 8%,
+    var(--dsh-cyber-brand) 92%,
+    transparent 100%
+  );
+  box-shadow: 0 0 8px color-mix(in srgb, var(--dsh-cyber-brand) 65%, transparent);
+}
+
+/* Phosphor bloom: the glow that actually sells a CRT. It rides the screen
+   rather than each glyph, so it costs one paint instead of one per character,
+   and it is a shadow on the text layer — the emulator's own buffer, cursor
+   geometry, and program-set colors are untouched. */
+body[data-dsh-theme='cyberpunk'] [data-sidebar-terminal] .xterm-screen {
+  filter:
+    drop-shadow(0 0 1px color-mix(in srgb, var(--dsh-cyber-blue) 55%, transparent))
+    drop-shadow(0 0 5px color-mix(in srgb, var(--dsh-cyber-blue) 30%, transparent));
+}
+
+/* Corner ticks, matching the main viewport's frame so the pane reads as part
+   of the same instrument. */
+body[data-dsh-theme='cyberpunk'] [data-sidebar-terminal]::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  pointer-events: none;
+  z-index: 4;
+  --dsh-cyber-tick: color-mix(in srgb, var(--dsh-cyber-blue) 70%, transparent);
+  background:
+    linear-gradient(var(--dsh-cyber-tick) 0 0) 0 0 / 14px 1px no-repeat,
+    linear-gradient(var(--dsh-cyber-tick) 0 0) 0 0 / 1px 14px no-repeat,
+    linear-gradient(var(--dsh-cyber-tick) 0 0) 100% 0 / 14px 1px no-repeat,
+    linear-gradient(var(--dsh-cyber-tick) 0 0) 100% 0 / 1px 14px no-repeat,
+    linear-gradient(var(--dsh-cyber-tick) 0 0) 0 100% / 14px 1px no-repeat,
+    linear-gradient(var(--dsh-cyber-tick) 0 0) 0 100% / 1px 14px no-repeat,
+    linear-gradient(var(--dsh-cyber-tick) 0 0) 100% 100% / 14px 1px no-repeat,
+    linear-gradient(var(--dsh-cyber-tick) 0 0) 100% 100% / 1px 14px no-repeat;
+}
+
+/* The screen takes a blue phosphor cast and a scanline weave of its own, so the
+   pane is legible as a separate tube inside the viewport's veil rather than a
+   flat rectangle behind it. */
+body[data-dsh-theme='cyberpunk'] [data-sidebar-terminal] .xterm {
+  position: relative;
+}
+
+body[data-dsh-theme='cyberpunk'] [data-sidebar-terminal] .xterm::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0.5;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    color-mix(in srgb, #000 22%, transparent) 2px,
+    color-mix(in srgb, #000 22%, transparent) 3px
+  );
+}
+
+/* Boot sequence: a one-shot overlay that plays as the pane mounts, so opening
+   a terminal reads as a deck coming up rather than a rectangle appearing. It is
+   drawn over the screen and fades itself out, so it never blocks input and
+   needs no markup: the text is generated content on a pseudo-element that is
+   already there for the terminal's own chrome. */
+body[data-dsh-theme='cyberpunk'] [data-sidebar-terminal] .xterm::before {
+  content: 'DSH BIOS v2.077\A LINK ESTABLISHED\A ICE: NONE DETECTED';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  white-space: pre;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsh-cyber-blue);
+  font-family: var(--ds-font-family-code);
+  font-size: 12px;
+  line-height: 1.5;
+  text-shadow: 0 0 6px color-mix(in srgb, var(--dsh-cyber-blue) 70%, transparent);
+  animation: dsh-cyber-boot 2.6s steps(1, end) 1 both;
+}
+
+/* --- Menus and surfaces (Cyberpunk 2077 HUD) --------------------------- */
+
+/* The game's menus are opaque, hard-edged panels with a hazard-yellow rule and
+   no blur: the surface reads as a slab of interface, not frosted glass.
+   The fill and blur tokens stay owned by `design-platform.css` (a package gate
+   enforces that one sheet owns menus across every platform), so this sheet
+   overrides the *material* the shared menu renders instead of the tokens. */
+body[data-dsh-theme='cyberpunk'] [data-menu-material] {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background-color: var(--dsw-alias-bg-layer-2);
+  border: 1px solid color-mix(in srgb, var(--dsh-cyber-hazard) 34%, transparent);
+  border-radius: 2px;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, #000 70%, transparent),
+    0 0 18px color-mix(in srgb, var(--dsh-cyber-neon) 22%, transparent),
+    var(--dsh-cyber-glow-hazard);
+}
+
+/* The selection bar: a solid hazard-yellow wedge down the left of the active
+   row, which is how the game marks the focused entry in a list. */
+body[data-dsh-theme='cyberpunk'] [data-menu-material] [aria-selected='true'],
+body[data-dsh-theme='cyberpunk'] [data-menu-material] [data-highlighted] {
+  box-shadow: inset 3px 0 0 0 var(--dsh-cyber-hazard);
+}
+
+/* --- Scanline veil (whole window) -------------------------------------- */
+
+/* A fixed, pointer-transparent overlay carrying the scanline gradient. This is
+   the CRT *surface*, so it covers the whole window including the sidebars and
+   the terminal. `pointer-events: none` is what keeps it from stealing clicks. */
+body[data-dsh-theme='cyberpunk']::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  opacity: var(--dsh-cyber-scanline-alpha);
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--dsh-cyber-scanline-size) - 1px),
+    #000 calc(var(--dsh-cyber-scanline-size) - 1px),
+    #000 var(--dsh-cyber-scanline-size)
+  );
+  background-size: 100% var(--dsh-cyber-scanline-size);
+}
+
+/* --- CRT roll bar (main viewport only) --------------------------------- */
+
+/* The travelling flyback band reads as the deck's own display refreshing, so it
+   is scoped to the centre column: a sidebar or terminal pane is a separate
+   instrument and must not appear to share that tube. It rides a dedicated child
+   element because the column's two pseudo-elements carry the corner frame.
+
+   `--dsh-cyber-roll-*` are read by the element the frame renders, so the band
+   and the frame never contend for one pseudo-element. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-rollbar] {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: calc(var(--dsh-cyber-scanline-alpha) * var(--dsh-cyber-roll-opacity, 1));
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--dsh-cyber-neon-alt) 10%, transparent) 45%,
+    color-mix(in srgb, var(--dsh-cyber-neon-alt) 26%, transparent) 50%,
+    color-mix(in srgb, var(--dsh-cyber-neon-alt) 10%, transparent) 55%,
+    transparent 100%
+  );
+  background-size: 100% 26%;
+  background-repeat: no-repeat;
+  animation: dsh-cyber-roll var(--dsh-cyber-roll-duration) linear infinite;
+}
+
+/* Tube falloff: a corner vignette that pulls focus toward the middle of the
+   screen. Static, and above the veil, so it never competes with the roll. */
+body[data-dsh-theme='cyberpunk']::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 2147483001;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 94% 90% at 50% 50%,
+    transparent 60%,
+    color-mix(in srgb, #000 58%, transparent) 100%
+  );
+}
+
+/* --- Rare full sweep (main viewport) ----------------------------------- */
+
+/* A larger, brighter band that crosses the viewport about once every two
+   minutes: the same idea as the boot sweep, but repeating slowly enough to
+   read as an idle instrument rather than an event. It rides its own element
+   because the corner pseudo-elements and the roll band already claim theirs. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-sweep] {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--dsh-cyber-blue) 5%, transparent) 38%,
+    color-mix(in srgb, var(--dsh-cyber-blue) 34%, transparent) 50%,
+    color-mix(in srgb, var(--dsh-cyber-blue) 5%, transparent) 62%,
+    transparent 100%
+  );
+  background-size: 100% 34%;
+  background-repeat: no-repeat;
+  animation: dsh-cyber-sweep-rare var(--dsh-cyber-sweep-interval) linear infinite;
+}
+
+/* --- Boot sweep -------------------------------------------------------- */
+
+/* A one-shot bright band crossing the overlay as the theme activates, so a
+   switch reads as a tube warming up rather than an instant repaint. */
+body[data-dsh-theme='cyberpunk'] [data-shell-overlay]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--dsh-cyber-neon-alt) 45%, transparent) 50%,
+    transparent 100%
+  );
+  animation: dsh-cyber-sweep var(--dsh-cyber-sweep-duration) ease-out 1 both;
+}
+
+/* The link heartbeat: a two-beat pulse, like a monitor rather than a smooth
+   throb. Its presence is the signal that the harness is answering. */
+@keyframes dsh-cyber-heartbeat {
+  0%, 100% { opacity: 1; }
+  18% { opacity: 0.25; }
+  36% { opacity: 1; }
+  54% { opacity: 0.35; }
+  70% { opacity: 1; }
+}
+
+/* The boot card holds, then cuts out. The cut is deliberate: a CRT does not
+   fade, it stops. */
+@keyframes dsh-cyber-boot {
+  0%, 62% { opacity: 1; }
+  63% { opacity: 0.25; }
+  64%, 100% { opacity: 0; }
+}
+
+@keyframes dsh-cyber-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.72; }
+}
+
+@keyframes dsh-cyber-flicker {
+  0%, 100% { opacity: 1; }
+  2% { opacity: var(--dsh-cyber-flicker-min); }
+  2.6% { opacity: 1; }
+  7% { opacity: 0.9; }
+  7.4% { opacity: 1; }
+  31% { opacity: 1; }
+  31.3% { opacity: 0.62; }
+  32.1% { opacity: 1; }
+  33% { opacity: 0.85; }
+  33.5% { opacity: 1; }
+  62% { opacity: 1; }
+  62.2% { opacity: 0.78; }
+  62.8% { opacity: 1; }
+  88% { opacity: 1; }
+  88.3% { opacity: 0.68; }
+  89% { opacity: 1; }
+}
+
+/* Two abrupt lateral tears per cycle, each about a single frame wide. */
+@keyframes dsh-cyber-glitch {
+  0%, 18%, 19.5%, 64%, 65.5%, 100% { transform: translateX(0); filter: none; }
+  18.4% { transform: translateX(-4px); filter: hue-rotate(26deg); }
+  19% { transform: translateX(3px); filter: hue-rotate(-20deg); }
+  64.3% { transform: translateX(5px); filter: hue-rotate(-32deg); }
+  64.9% { transform: translateX(-3px); filter: hue-rotate(18deg); }
+}
+
+/* The roll band travels from above the viewport to below it. One background
+   layer, so this animates a single `background-position` pair: a second value
+   here would invalidate the whole declaration and the band would sit still. */
+@keyframes dsh-cyber-roll {
+  0% { background-position: 0 -30%; }
+  100% { background-position: 0 130%; }
+}
+
+/* The rare sweep spends almost the whole cycle parked off-screen with zero
+   opacity, then crosses once. The keyframe percentages are what make it rare:
+   only the last few percent are visible at all. */
+@keyframes dsh-cyber-sweep-rare {
+  0%, 96% { opacity: 0; background-position: 0 -40%; }
+  96.1% { opacity: 1; }
+  99% { opacity: 1; }
+  99.9% { opacity: 0; background-position: 0 140%; }
+  100% { opacity: 0; background-position: 0 -40%; }
+}
+
+@keyframes dsh-cyber-sweep {
+  0% { opacity: 0; transform: translateY(-100%); }
+  20% { opacity: 0.9; }
+  100% { opacity: 0; transform: translateY(100%); }
+}
+
+/* --- Extreme-only effects ----------------------------------------------- */
+
+/* The top of the dial is a different experience, not the same one louder:
+   these rules exist only at `extreme`, so nothing below it pays their cost.
+
+   Barrel distortion is the one effect that moves text geometry, so it is
+   confined here and kept to a fraction of a percent: enough to read as tube
+   curvature across a full screen, not enough to displace a glyph within a
+   line. */
+/* Barrel curvature, driven by the level's own scale rather than switched on at
+   the top: at `low` the factor rounds to no visible change, and each step up
+   adds a little more. Kept tiny at every level, because this is the one effect
+   that moves text geometry. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-viewport-body] {
+  transform: perspective(1400px) scale(calc(1 + var(--dsh-cyber-curvature) * 0.003));
+  transform-origin: 50% 50%;
+}
+
+/* A slow full-screen drift, so the panel reads as a live signal rather than a
+   still frame. Sub-pixel at any instant. */
+body[data-dsh-theme='cyberpunk'][data-dsh-intensity='extreme'] [data-cyber-viewport]::before {
+  animation: dsh-cyber-drift 14s ease-in-out infinite;
+}
+
+/* Vertical hold slip: a rare single-frame roll, the classic failing-sync
+   artifact. It rides the veil rather than the content, so text never moves. */
+body[data-dsh-theme='cyberpunk'][data-dsh-intensity='extreme']::after {
+  animation: dsh-cyber-roll var(--dsh-cyber-roll-duration) linear infinite,
+    dsh-cyber-hold 23s steps(1, end) infinite;
+}
+
+@keyframes dsh-cyber-drift {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  33% { transform: translate3d(0.4px, -0.6px, 0); }
+  66% { transform: translate3d(-0.5px, 0.4px, 0); }
+}
+
+/* One slip per cycle: the veil jumps, holds a beat, and snaps back. */
+@keyframes dsh-cyber-hold {
+  0%, 88% { transform: translateY(0); }
+  88.4% { transform: translateY(-6px); }
+  89.2% { transform: translateY(0); }
+  100% { transform: translateY(0); }
+}
+
+/* Honour the platform's reduced-motion setting: the palette, grid, glow, and
+   static fringing stay, and every animation is dropped. Motion is decoration
+   here, never the carrier of meaning. */
+@media (prefers-reduced-motion: reduce) {
+  body[data-dsh-theme='cyberpunk'] h1,
+  body[data-dsh-theme='cyberpunk'] h2,
+  body[data-dsh-theme='cyberpunk'] h3,
+  body[data-dsh-theme='cyberpunk'] [data-cyber-title],
+  body[data-dsh-theme='cyberpunk'] [data-shell-overlay],
+  body[data-dsh-theme='cyberpunk'] [data-shell-overlay] > *,
+  body[data-dsh-theme='cyberpunk'] [data-shell-overlay]::after,
+  body[data-dsh-theme='cyberpunk'] [data-cyber-rollbar],
+  body[data-dsh-theme='cyberpunk'] [data-cyber-sweep],
+  body[data-dsh-theme='cyberpunk'][data-dsh-intensity='extreme'] [data-cyber-viewport]::before,
+  body[data-dsh-theme='cyberpunk'][data-dsh-intensity='extreme']::after,
+  body[data-dsh-theme='cyberpunk'] [data-sidebar-terminal] .xterm::before,
+  body[data-dsh-theme='cyberpunk'] [data-cyber-viewport][data-cyber-link='connected'] [data-cyber-linkframe]::before,
+  body[data-dsh-theme='cyberpunk'] [data-cyber-viewport][data-cyber-link='connecting'] [data-cyber-linkframe]::before,
+  body[data-dsh-theme='cyberpunk'] [data-variant='think'][data-state='running'] svg,
+  body[data-dsh-theme='cyberpunk'] [data-variant='think'][data-state='running'] [class*='title'] {
+    animation: none;
+  }
+}

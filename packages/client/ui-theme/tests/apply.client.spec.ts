@@ -11,11 +11,12 @@ import { apply, inject, SETTINGS_NS, ThemeRuntime } from '@deepseek-ai/dsh-clien
 import type { AppearanceRowInjected, FontSettingsInjected, ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
 import { THEME_SETTINGS_NAMESPACE, ThemeSettingsSchema, type ThemeSettings } from '../src/theme-settings.ts'
 import { AppearanceRow } from '../src/client/AppearanceRow.tsx'
-import type { createAppearanceRowStore, createFontRowStore } from '../src/client/settings-store.ts'
+import { IntensityRow } from '../src/client/IntensityRow.tsx'
 import { FontSettingsGroup } from '../src/client/FontSettingsGroup.tsx'
 import type { Shortcuts, ShortcutContext, ShortcutFixedInput, ShortcutGesture, ShortcutPlatform } from '@deepseek-ai/dsh-client-shortcuts/client'
 import { bindingKey, normalizeBinding, presentBinding } from '@deepseek-ai/dsh-client-shortcuts/protocol'
 import { ShortcutRegistry } from '../../shortcuts/src/client/registry.ts'
+import type { createAppearanceRowStore, createFontRowStore } from '../src/client/settings-store.ts'
 
 // These specs assert the shipped Chinese copy. The lane has no jsdom `window`,
 // so browser-language detection never runs and a fresh LocaleRuntime opens on
@@ -443,7 +444,7 @@ describe('ui-theme apply', () => {
     const b = await bench()
     const host = declareItems(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
-    expect(b.slots.entries(SLOT)).toHaveLength(2)
+    expect(b.slots.entries(SLOT)).toHaveLength(3)
 
     // Collapse: the declarer dies, the cascade removes our entries while the
     // apply closure still holds its (now stale) disposers.
@@ -454,6 +455,7 @@ describe('ui-theme apply', () => {
     await Promise.resolve()
     expect(b.slots.entries(SLOT).some(e => e.component === AppearanceRow)).toBe(true)
     expect(b.slots.entries(SLOT).some(e => e.component === FontSettingsGroup)).toBe(true)
+    expect(b.slots.entries(SLOT).some(e => e.component === IntensityRow)).toBe(true)
   })
 
   it('teardown removes the rows and the dictionaries; teardown without a declaration is quiet', async () => {
@@ -461,7 +463,7 @@ describe('ui-theme apply', () => {
     declareItems(b.slots)
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
-    expect(b.slots.entries(SLOT)).toHaveLength(2)
+    expect(b.slots.entries(SLOT)).toHaveLength(3)
     await fiber.dispose()
     expect(b.slots.entries(SLOT)).toHaveLength(0)
     // Dictionary disposal: translation falls back to the bare key.

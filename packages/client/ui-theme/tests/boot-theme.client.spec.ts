@@ -24,6 +24,7 @@ afterEach(() => {
   document.body.removeAttribute(DARK_ATTRIBUTE)
   for (const name of ['--dsh-content-font-size', '--dsh-code-font-size', '--dsh-terminal-font-size']) document.body.style.removeProperty(name)
   for (const kind of ['text', 'code', 'terminal']) document.body.style.removeProperty(`--dsh-font-family-${kind}`)
+  document.body.removeAttribute('data-dsh-theme')
 })
 
 describe('theme bootstrap row', () => {
@@ -97,5 +98,28 @@ describe('theme bootstrap row', () => {
     expect(document.body.style.getPropertyValue('--dsh-font-family-text')).toBe('"Inter"')
     expect(document.body.style.getPropertyValue('--dsh-font-family-code')).toBe('')
     expect(document.body.style.getPropertyValue('--dsh-font-family-terminal')).toBe('"MesloLGS NF/script", monospace')
+  })
+
+  it('paints the cyberpunk chassis and marks the palette before plugins load', () => {
+    mockSystemDark(false)
+    const [head] = bootThemeInjections('cyberpunk')
+    if (head?.kind !== 'style') throw new Error('theme head bootstrap row is not a style')
+    // Dark-only, so it needs no media query and never flashes the light canvas.
+    expect(head.text).toBe(':root{color-scheme:dark}body{background-color:#04060b;--dsh-boot-bg:#04060b}')
+    executeBootstrap('cyberpunk')
+    expect(document.documentElement.dataset.dsThemeSource).toBe('cyberpunk')
+    expect(document.body.hasAttribute(DARK_ATTRIBUTE)).toBe(true)
+    // The effect sheet keys off this attribute, so it must exist before the
+    // first client render rather than only after the presenter runs.
+    expect(document.body.getAttribute('data-dsh-theme')).toBe('cyberpunk')
+  })
+
+  it('does not set the cyberpunk attribute for other preferences', () => {
+    mockSystemDark(false)
+    for (const preference of ['light', 'dark', 'system'] as const) {
+      document.body.removeAttribute('data-dsh-theme')
+      executeBootstrap(preference)
+      expect(document.body.hasAttribute('data-dsh-theme'), preference).toBe(false)
+    }
   })
 })

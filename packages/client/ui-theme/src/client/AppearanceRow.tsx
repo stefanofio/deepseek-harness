@@ -14,6 +14,7 @@ import type { ThemePreference } from '../theme-settings.ts'
 import type { ThemeKey } from './locales.ts'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { createAppearanceRowStore } from './settings-store.ts'
+import { CyberpunkGlyph } from './CyberpunkGlyph.tsx'
 import css from './AppearanceRow.module.css'
 
 /** Injected business face: the preference write (t rides the standard locale seat). */
@@ -27,10 +28,11 @@ export type AppearanceRowComponentProps =
   PropsRuntime<'settings.general.item'> & PropsStore<ReturnType<typeof createAppearanceRowStore>>
   & PropsLocale<'settings.theme'> & AppearanceRowInjected
 
-/** Cube order and icons (figma 501:30015-30017: Light, Dark, System). */
+/** Cube order and icons (figma 501:30015-30017: Light, Dark, System; cyberpunk appended). */
 const CUBES: readonly { id: ThemePreference; labelKey: ThemeKey; Icon: typeof IconLightOutlineMedium }[] = [
   { id: 'light', labelKey: 'appearance.light', Icon: IconLightOutlineMedium },
   { id: 'dark', labelKey: 'appearance.dark', Icon: IconDarkOutlineMedium },
+  { id: 'cyberpunk', labelKey: 'appearance.cyberpunk', Icon: CyberpunkGlyph },
   { id: 'system', labelKey: 'appearance.system', Icon: IconFollowsystemOutlineMedium },
 ]
 

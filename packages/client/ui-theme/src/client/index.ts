@@ -23,14 +23,21 @@ import type { AppearanceRowInjected } from './AppearanceRow.tsx'
 import { AppearanceRow } from './AppearanceRow.tsx'
 import type { FontSettingsInjected } from './FontSettingsGroup.tsx'
 import { FontSettingsGroup } from './FontSettingsGroup.tsx'
-import { createAppearanceRowStore, createFontRowStore } from './settings-store.ts'
+import { IntensityRow, type IntensityRowInjected } from './IntensityRow.tsx'
+import { createAppearanceRowStore, createFontRowStore, createIntensityRowStore } from './settings-store.ts'
 import { installThemeStyles } from './styles.ts'
+import { cyberpunkTokens, CYBERPUNK_THEME_ID } from './cyberpunk.ts'
+import { INTENSITY_ATTRIBUTE } from '../cyberpunk-identity.ts'
+import {
+  CYBERPUNK_FLAVOR_NS, en as flavorEn, flavorLineAt, FLAVOR_INTERVAL_MS, isCyberpunkActive,
+  operationLine, zh as flavorZh, type FlavorKey, type RunningTitleFlavor,
+} from './cyberpunk-flavor.ts'
 import { en, zh, type ThemeKey } from './locales.ts'
 import {
-  DEFAULT_FONT_SIZES, DEFAULT_PREFERENCE, FONT_FAMILY_FIELDS, FONT_ROLES, FONT_SIZE_SPECS,
+  DEFAULT_FONT_SIZES, DEFAULT_INTENSITY, DEFAULT_PREFERENCE, FONT_FAMILY_FIELDS, FONT_ROLES, FONT_SIZE_SPECS,
   fontFamilyVariable, isFontSize, isThemePreference, normalizeFontFamily, sectionFontSizes,
-  THEME_PREFERENCE_FIELD, THEME_SETTINGS_NAMESPACE,
-  type FontFamilies, type FontRole, type FontSizes, type ThemePreference, type ThemeSettings,
+  INTENSITY_FIELD, INTENSITY_LEVELS, THEME_PREFERENCE_FIELD, THEME_SETTINGS_NAMESPACE,
+  type FontFamilies, type FontRole, type FontSizes, type IntensityLevel, type ThemePreference, type ThemeSettings,
 } from '../theme-settings.ts'
 
 export type { AppearanceRowComponentProps, AppearanceRowInjected } from './AppearanceRow.tsx'
@@ -38,6 +45,8 @@ export type { FontSettingsGroupProps, FontSettingsInjected } from './FontSetting
 export type { AppearanceRowState, FontRowState } from './settings-store.ts'
 export type { ThemeKey } from './locales.ts'
 export type { FontFamilies, FontRole, FontSizes, ThemePreference, ThemeSettings } from '../theme-settings.ts'
+export type { FlavorKey } from './cyberpunk-flavor.ts'
+export type { IntensityLevel } from '../theme-settings.ts'
 
 /** Namespace owning this feature's settings-row copy. */
 export const SETTINGS_NS = 'settings.theme'
@@ -46,6 +55,34 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** The Appearance settings row's copy. */
     'settings.theme': ThemeKey
+    /** The cyberpunk running-title flavor lines. */
+    cyberpunkFlavor: FlavorKey
+  }
+
+  interface GlobalStandardProps {
+    /**
+     * The active theme's running flavor, as one seam with two question forms:
+     * by elapsed time (the rotation) or by the operation actually running
+     * (which the theme names). Either returns `undefined` while no
+     * flavor-bearing theme is active, so the caller keeps its own copy.
+     *
+     * A live operation wins when both are offered, so the line names real work
+     * instead of cycling.
+     *
+     * Optional by design: flavor is decoration, so a transcript renderer, and
+     * every component-spec fixture that feeds props directly, stays valid
+     * without it. Required-global hooks are for data no renderer can omit.
+     */
+    runningFlavor?: {
+      /** Line for an elapsed-time offset, cycling the theme's rotation. */
+      at?: (elapsedMs: number) => RunningTitleFlavor
+      /**
+       * Line for one running operation. Taking the category as an argument
+       * keeps the theme ignorant of the Chat contract: the caller passes the
+       * string it already has.
+       */
+      operation?: (category: string, done: boolean) => RunningTitleFlavor
+    }
   }
 }
 
@@ -88,6 +125,8 @@ export interface ThemeSnapshot {
   fontSizes: FontSizes
   /** Normalized user font lists by role; `''` selects the role's built-in stack. */
   fontFamilies: FontFamilies
+  /** How far a theme's own effect layer is pushed; read only by themes that ship one. */
+  intensity: IntensityLevel
   /**
    * The resolved active theme (`system` resolved via prefers-color-scheme)
    * with override layers folded into its tokens (seq order, later layers win
@@ -132,7 +171,35 @@ declare module '@deepseek-ai/cordis' {
 const BUILTIN_THEMES: readonly ThemeDefinition[] = Object.freeze([
   Object.freeze({ id: 'light', colorScheme: 'light' as const, tokens: Object.freeze({}) }),
   Object.freeze({ id: 'dark', colorScheme: 'dark' as const, tokens: Object.freeze({}) }),
+  // Cyberpunk is a dark-scheme definition over the base dark palette. Its
+  // tokens carry both the alias repaint and the `--dsh-cyber-*` effect
+  // parameters the effect sheet reads (see cyberpunk.ts).
+  Object.freeze({ id: CYBERPUNK_THEME_ID, colorScheme: 'dark' as const, tokens: freezeTokens(cyberpunkTokens()) }),
 ])
+
+/**
+ * Freeze a `{ light, dark }` override map down to the registry's token
+ * dictionary. The theme is dark-only, so both modes already hold the same
+ * value and the active scheme selects it either way.
+ */
+/**
+ * Whether a theme definition ships an effect layer the intensity level scales.
+ *
+ * Read from the definition rather than from a token name: the theme publishes
+ * its effect parameters under the `--dsh-cyber-*` namespace, which is the
+ * stable statement that it has effects at all.
+ * @param definition - the active theme definition.
+ * @returns whether the level applies to this theme.
+ */
+function hasEffectLayer(definition: ThemeDefinition): boolean {
+  return Object.keys(definition.tokens).some(name => name.startsWith('--dsh-cyber-'))
+}
+
+function freezeTokens(overrides: Readonly<Record<string, ThemeTokenModes>>): ThemeTokens {
+  return Object.freeze(Object.fromEntries(
+    Object.entries(overrides).map(([name, modes]) => [name, modes.dark]),
+  ))
+}
 
 const BUILTIN_INSPECT_TOKENS: readonly ThemeTokenInspection[] = Object.freeze([
   { name: '--dsw-alias-bg-base', description: 'Application base background.', valueType: 'CSS color', requiresLightAndDark: true, cssVariable: '--dsw-alias-bg-base' },
@@ -149,6 +216,15 @@ const BUILTIN_INSPECT_TOKENS: readonly ThemeTokenInspection[] = Object.freeze([
   { name: '--dsw-alias-state-success-primary', description: 'Primary success state color.', valueType: 'CSS color', requiresLightAndDark: true, cssVariable: '--dsw-alias-state-success-primary' },
   { name: '--dsw-alias-state-warn-primary', description: 'Primary warning state color.', valueType: 'CSS color', requiresLightAndDark: true, cssVariable: '--dsw-alias-state-warn-primary' },
   { name: '--dsw-specific-sidebar-fill', description: 'Sidebar column and title-row background.', valueType: 'CSS color', requiresLightAndDark: true, cssVariable: '--dsw-specific-sidebar-fill' },
+  { name: '--dsh-cyber-neon', description: 'Cyberpunk primary neon accent.', valueType: 'CSS color', requiresLightAndDark: true, cssVariable: '--dsh-cyber-neon' },
+  { name: '--dsh-cyber-neon-alt', description: 'Cyberpunk secondary neon accent.', valueType: 'CSS color', requiresLightAndDark: true, cssVariable: '--dsh-cyber-neon-alt' },
+  { name: '--dsh-cyber-phosphor', description: 'Cyberpunk CRT phosphor accent.', valueType: 'CSS color', requiresLightAndDark: true, cssVariable: '--dsh-cyber-phosphor' },
+  { name: '--dsh-cyber-grid-size', description: 'Cyberpunk backdrop grid pitch.', valueType: 'CSS length', requiresLightAndDark: true, cssVariable: '--dsh-cyber-grid-size' },
+  { name: '--dsh-cyber-scanline-size', description: 'Cyberpunk scanline pitch.', valueType: 'CSS length', requiresLightAndDark: true, cssVariable: '--dsh-cyber-scanline-size' },
+  { name: '--dsh-cyber-flicker-duration', description: 'Cyberpunk chrome flicker cycle.', valueType: 'CSS time', requiresLightAndDark: true, cssVariable: '--dsh-cyber-flicker-duration' },
+  { name: '--dsh-cyber-aberration', description: 'Cyberpunk chromatic-aberration offset.', valueType: 'CSS length', requiresLightAndDark: true, cssVariable: '--dsh-cyber-aberration' },
+  { name: '--dsh-cyber-roll-duration', description: 'Cyberpunk CRT roll-bar cycle.', valueType: 'CSS time', requiresLightAndDark: true, cssVariable: '--dsh-cyber-roll-duration' },
+  { name: '--dsh-cyber-scanline-alpha', description: 'Cyberpunk scanline veil opacity.', valueType: 'CSS number', requiresLightAndDark: true, cssVariable: '--dsh-cyber-scanline-alpha' },
 ])
 
 /**
@@ -169,6 +245,7 @@ export class ThemeRuntime {
   private preference: ThemePreference
   private fontSizes: FontSizes = bootstrapFontSizes()
   private fontFamilies: FontFamilies = bootstrapFontFamilies()
+  private intensity: IntensityLevel = bootstrapIntensity()
   private revision = 0
   /** Own settings writes not yet settled; adoption waits for zero so a Host echo of an earlier write cannot revert a later local change. */
   private pendingWrites = 0
@@ -301,6 +378,23 @@ export class ThemeRuntime {
     this.publish()
   }
 
+  /**
+   * Change the effect-intensity level — the only intensity write entry.
+   * Accepted values are written through the settings scope and emit
+   * `theme/change`. The level is stored regardless of the active theme, so a
+   * reader who switches away and back keeps their choice.
+   * @param level - one of {@link INTENSITY_LEVELS}; anything else throws.
+   */
+  setIntensity(level: IntensityLevel): void {
+    if (!INTENSITY_LEVELS.some(candidate => candidate === level)) {
+      throw new Error(`intensity "${level}" is not one of ${INTENSITY_LEVELS.join(', ')}`)
+    }
+    if (this.intensity === level) return
+    this.intensity = level
+    this.write(() => this.host.set(INTENSITY_FIELD, level))
+    this.publish()
+  }
+
   /** Queue one settings write, then adopt the durable section once no own write remains. */
   private write(operation: () => Promise<boolean>): void {
     this.pendingWrites += 1
@@ -318,10 +412,12 @@ export class ThemeRuntime {
     const fontFamilies = durableFontFamilies(section)
     const fontSizes = sectionFontSizes(section)
     if (this.preference === section.preference
-      && FONT_ROLES.every(role => this.fontSizes[role] === fontSizes[role] && this.fontFamilies[role] === fontFamilies[role])) return
+      && FONT_ROLES.every(role => this.fontSizes[role] === fontSizes[role] && this.fontFamilies[role] === fontFamilies[role])
+      && this.intensity === section.intensity) return
     this.preference = section.preference
     this.fontSizes = fontSizes
     this.fontFamilies = fontFamilies
+    this.intensity = section.intensity
     this.publish()
   }
 
@@ -390,6 +486,7 @@ export class ThemeRuntime {
       preference: this.preference,
       fontSizes: this.fontSizes,
       fontFamilies: this.fontFamilies,
+      intensity: this.intensity,
       active: this.composeActive(active),
       themes: Object.freeze([...this.themes]),
       revision: this.revision,
@@ -418,6 +515,19 @@ export class ThemeRuntime {
     this.snapshot = this.buildSnapshot()
     this.ctx.emit('theme/change', this.snapshot)
   }
+}
+
+/**
+ * Read the effect intensity the Host boot script wrote on `body` before any
+ * plugin ran, so the first paint already uses the reader's level. Non-browser
+ * runs and mounts without the boot script fall back to the schema default; the
+ * durable settings adoption still lands afterwards.
+ */
+function bootstrapIntensity(): IntensityLevel {
+  /* v8 ignore next -- needs a documentless run (node e2e booting the client tree), not constructible under jsdom */
+  if (typeof document === 'undefined') return DEFAULT_INTENSITY
+  const raw = document.body.getAttribute(INTENSITY_ATTRIBUTE)
+  return INTENSITY_LEVELS.some(level => level === raw) ? raw as IntensityLevel : DEFAULT_INTENSITY
 }
 
 /**
@@ -556,6 +666,7 @@ export function apply(ctx: ClientContext): void {
   const sync = (snapshot: ThemeSnapshot): void => {
     bound?.sync(snapshot.preference, snapshot.revision)
     fontBound?.sync(snapshot.fontSizes, snapshot.fontFamilies, snapshot.revision)
+    intensityBound?.sync(snapshot.intensity, hasEffectLayer(snapshot.active), snapshot.revision)
   }
   ctx.on('theme/change', sync)
   const injected = (actions: BoundActions<typeof store>): AppearanceRowInjected => {
@@ -575,6 +686,28 @@ export function apply(ctx: ClientContext): void {
     locale: SETTINGS_NS,
     inject: injected,
   }, AppearanceRow))
+
+  // The intensity row follows the resolved active theme, not the preference:
+  // it is offered exactly while the theme on screen has an effect layer to
+  // scale, which is also when the level takes effect.
+  const intensityStore = createIntensityRowStore()
+  let intensityBound: BoundActions<typeof intensityStore> | undefined
+  const intensityInjected = (actions: BoundActions<typeof intensityStore>): IntensityRowInjected => {
+    intensityBound = actions
+    sync(theme.getTheme())
+    return {
+      setIntensity: (level) => { theme.setIntensity(level) },
+    }
+  }
+
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item',
+    id: 'effect-intensity',
+    order: 12,
+    store: intensityStore,
+    locale: SETTINGS_NS,
+    inject: intensityInjected,
+  }, IntensityRow))
 
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item',

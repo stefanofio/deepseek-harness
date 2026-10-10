@@ -21,6 +21,7 @@ const COPY: Record<string, string> = {
   'appearance.title': 'Appearance',
   'appearance.light': 'Light',
   'appearance.dark': 'Dark',
+  'appearance.cyberpunk': 'Cyberpunk',
   'appearance.system': 'System',
 }
 
@@ -64,11 +65,22 @@ const pressed = (name: RegExp): string | null =>
   screen.getByRole('button', { name }).getAttribute('aria-pressed')
 
 describe('AppearanceRow', () => {
-  it('renders the title and three cubes with the preference cube selected', () => {
+  it('renders the title and four cubes with the preference cube selected', () => {
     mount('dark')
     expect(screen.getByText('Appearance')).toBeDefined()
+    expect(screen.getAllByRole('button')).toHaveLength(4)
     expect(pressed(/Dark/)).toBe('true')
     expect(pressed(/Light/)).toBe('false')
+    expect(pressed(/Cyberpunk/)).toBe('false')
+    expect(pressed(/System/)).toBe('false')
+  })
+
+  it('offers cyberpunk as a selectable preference and reflects it when active', () => {
+    const b = mount('system')
+    fireEvent.click(screen.getByRole('button', { name: /Cyberpunk/ }))
+    expect(b.setTheme).toHaveBeenCalledWith('cyberpunk')
+    act(() => { b.store.actions.sync('cyberpunk', 1) })
+    expect(pressed(/Cyberpunk/)).toBe('true')
     expect(pressed(/System/)).toBe('false')
   })
 

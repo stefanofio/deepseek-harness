@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import base from '../styles/base.css?inline'
 import cornerShape from '../styles/corner-shape.css?inline'
+import cyberpunk from '../styles/cyberpunk.css?inline'
 import designPlatform from '../styles/design-platform.css?inline'
 import focus from '../styles/focus.css?inline'
 import onboarding from '../styles/onboarding.css?inline'
@@ -13,6 +14,7 @@ const PLUGIN_ID = '@deepseek-ai/dsh-client-ui-theme'
 const STYLES = [
   ['base.css', base],
   ['corner-shape.css', cornerShape],
+  ['cyberpunk.css', cyberpunk],
   ['design-platform.css', designPlatform],
   ['focus.css', focus],
   ['onboarding.css', onboarding],
