@@ -10,7 +10,7 @@ import type { TerminalBodyInjected } from './face.ts'
 import type {} from './locales.ts'
 import '@xterm/xterm/css/xterm.css'
 import css from './terminal.module.css'
-import { TerminalTheme } from './terminal-theme.ts'
+import { TerminalTheme, ansiVariablePrefix, readAnsiPalette } from './terminal-theme.ts'
 import { observeTerminalCursor } from './terminal-cursor.ts'
 
 /** Standard sidebar owner share plus terminal model and localized copy. */
@@ -123,7 +123,12 @@ function TerminalScreen({ state, model, visible, label, theme }: {
 
   useLayoutEffect(() => {
     const style = getComputedStyle(element.current!)
-    colors.current!.update(style.backgroundColor, style.color)
+    // The screen's surface colors come from the host element's computed style,
+    // so the terminal follows whatever palette the active theme painted. The
+    // ANSI palette is the one part CSS cannot express for xterm, so a theme
+    // publishes it as `--dsh-cyber-ansi-*` variables and it is read back here.
+    colors.current!.update(style.backgroundColor, style.color,
+      readAnsiPalette(style, ansiVariablePrefix(Object.keys(theme.active.tokens))))
   }, [theme, model])
 
   useLayoutEffect(() => {

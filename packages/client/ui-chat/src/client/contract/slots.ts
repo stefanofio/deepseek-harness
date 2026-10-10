@@ -19,6 +19,11 @@ import type { MarkdownFileMentions, MarkdownLabels } from '@deepseek-ai/dsh-clie
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 // Type-only: the Session-scope access Hook (`useAccess`) the Chat entries read.
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
+// Type-only: pulls the theme plugin's GlobalStandardProps merge
+// (`runningFlavor`), which flavors a running reasoning title and names the
+// live operation. No value crosses packages here — the hook arrives through the
+// slot standard kit.
+import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { createChatStore } from '../stores.ts'
 import type { ChatPresentationPolicy } from '../presentation-policy.ts'
 import type { FlowMotionRows } from '../chat/flow-motion.ts'

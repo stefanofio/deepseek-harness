@@ -1,5 +1,6 @@
 /** Ordered Chat rows, local echoes, and running status share the flow slot's parent. */
-import { memo } from 'react'
+import { memo, useCallback, useMemo } from 'react'
+import type { RenderMessageImages } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import type { ChatFlowSlotProps } from '../contract/slots.ts'
 import { ChatNodeSeat } from './ChatNodeSeat.tsx'
@@ -13,7 +14,8 @@ export const ChatFlow = memo(function ChatFlow({
   entries, pendingInputs, lastInputTurn, deferCollapse,
   useSession, useChat, useChatNode, useChatNodeBottom, useChatNodeProcess, useChatGroup, usePresentation,
   useStore, actions, renderSlot, renderFactorySlot, t, useGroupAction, useGroupHeaderAction,
-  cwd, openFile, inspectCall, forkAt, loadImage, fileMentions,
+  cwd, openFile, openSkill, inspectCall, forkAt, loadImage, fileMentions,
+  runningFlavor,
 }: ChatFlowSlotProps) {
   const nodeStore = useChat(snapshot => snapshot.nodes)
   const running = useSession(snapshot => snapshot.running)
@@ -24,6 +26,26 @@ export const ChatFlow = memo(function ChatFlow({
       ? location.turn.status === 'open' ? location.turn.start?.time : undefined
       : undefined
   })
+  // The live operation the running line should name.
+  //
+  // This must read the group the process rows actually render, so it takes the
+  // last grouped entry from the same list those rows iterate. Reading the turn
+  // rail's anchor instead looked equivalent but is a different key space, so it
+  // resolved an unrelated group — which is why the status named one operation
+  // while the row above it named another.
+  const liveGroupKey = useMemo(() => {
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+      const entry = entries[index]
+      if (entry !== undefined && entry.kind === 'group') return entry.key
+    }
+    return undefined
+  }, [entries])
+  const runningActivity = useChatGroup(liveGroupKey ?? '', group =>
+    group?.data.closed === false ? group.data.summary.running : undefined)
+  const renderMessageImages = useCallback<RenderMessageImages>(
+    owner => renderSlot('conversation.message.images', { ...owner, loadImage }),
+    [loadImage, renderSlot],
+  )
   const seatProps = {
     nodeStore, useChatNode, useChatNodeBottom, useChatNodeProcess, usePresentation,
     useStore, actions, renderSlot, t, useGroupAction, deferCollapse,
@@ -57,5 +79,6 @@ export const ChatFlow = memo(function ChatFlow({
     const index = pendingInputs.findIndex(item => 'requestId' in item && item.placement === 'transcript')
     if (index !== -1) rows.splice(rows.length - 1, 0, ...pendingRows.splice(index, 1))
   }
-  return [...rows, ...pendingRows, ...running ? [<RunningStatus key="running" startTime={runningStartTime} t={t} />] : []]
+  return [...rows, ...pendingRows, ...running ? [<RunningStatus key="running" startTime={runningStartTime} t={t}
+    runningFlavor={runningFlavor} activity={runningActivity} />] : []]
 })

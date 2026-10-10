@@ -37,22 +37,39 @@ function latestCompletedParagraphFirstLine(text: string): string {
  * the complete Markdown with secondary typography. A streaming preview advances
  * when a paragraph's first line completes. Mode changes toggle CSS display without unmounting
  * collapsed summaries.
+ *
+ * While running, the row's *title* may be replaced by theme-supplied flavor
+ * copy (the cyberpunk theme's Wintermute lines). Only the title changes: the
+ * reasoning text, the summary preview, and every value the model produced
+ * render exactly as they do under any other theme.
  * @param props.text - complete or streaming reasoning text.
  * @param props.running - whether this block is the streaming tail.
  * @param props.usePresentation - live display-policy selector for this reasoning row.
  * @param props.useDisclosure - independent open state with enclosing-Turn resets.
+ * @param props.runningFlavor - optional theme-supplied running-title flavor key.
  * @param props.renderSlot - framework renderer for the standard reasoning Body Slot.
  * @param props.t - conversation locale seat for the disclosure and running status.
  * @returns the reasoning disclosure.
  */
-export const ReasoningRow = memo(function ReasoningRow({ text, running, usePresentation, useDisclosure, renderSlot, t }: {
+export const ReasoningRow = memo(function ReasoningRow({
+  text, running, usePresentation, useDisclosure, runningFlavor, renderSlot, t,
+}: {
   text: string
   running: boolean
   useDisclosure: UseDisclosure
   usePresentation: UsePresentation
+  runningFlavor?: ChatViewSlotProps['runningFlavor']
   t: ChatViewSlotProps['t']
 } & Pick<PropsRenderSlots<'conversation.chat.reasoning.body'>, 'renderSlot'>) {
   const { expanded, toggle } = useDisclosure()
+  // The hook is optional and stays callable in every render path; calling it
+  // with a zero offset when absent keeps the hook order stable. It yields an
+  // already-localized line from the theme's own dictionary, so no key from
+  // another plugin's namespace ever reaches this component's `t`. A reasoning
+  // title shows the rotation's first line rather than cycling: the status line
+  // below the transcript is what carries the advancing sequence.
+  const flavor = runningFlavor?.at?.(0)
+  const title = running && flavor !== undefined ? flavor : t('message.think')
   const summaryText = running ? latestCompletedParagraphFirstLine(text) : firstLine(text)
   const summary = useMemo(() => summaryText.replaceAll('**', ''), [summaryText])
   const preview = usePresentation(policy => !expanded && summary !== ''
@@ -87,7 +104,7 @@ export const ReasoningRow = memo(function ReasoningRow({ text, running, usePrese
         leadingClassName={css.leading}
         titleClassName={css.title}
         icon={THINK_ICON}
-        title={t('message.think')}
+        title={title}
         running={running}
         open={expanded}
         expandable

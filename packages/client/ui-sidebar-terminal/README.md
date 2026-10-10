@@ -37,6 +37,8 @@ After reload, the [sidebar restores its layout](../../client/ui-sidebar-right/RE
 
 The terminal background, default text, cursor, and selection follow the DSH theme, including system preference and theme-token overrides. Theme changes preserve the running shell, output, and application OSC color overrides. Reset commands restore colors to the current DSH defaults. The screen uses the Settings terminal font size and places the Settings terminal font ahead of its built-in monospace stack; changing either keeps the shell and output, and a visible writable screen refits the Host grid to the new cell size. xterm adjusts text toward 4.5:1 contrast; the cursor keeps at least 3:1 contrast against its cell background, including Vim colorschemes.
 
+A theme that ships an ANSI palette also colors program output: the screen reads a complete set of `--dsh-*-ansi-<key>` variables off the host element's computed style, so the cyberpunk theme's magenta/cyan/monochrome-amber palette reaches `ls`, `git`, and shell prompts without this package importing any theme package. A theme that publishes no such variables — or only a partial set — leaves xterm's built-in palette in place rather than receiving a half-themed screen. Application OSC overrides still win over both.
+
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 

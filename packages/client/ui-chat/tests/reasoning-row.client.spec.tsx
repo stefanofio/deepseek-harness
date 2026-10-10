@@ -300,6 +300,40 @@ describe('ReasoningRow', () => {
     expect(settledSummary.closest('[data-streaming]')).toBeNull()
   })
 
+  describe('theme-supplied running-title flavor', () => {
+    // The consolidated seam exposes the rotation under `at`.
+    const flavor = (value: string) => ({ at: () => value }) as never
+
+    it('replaces the running title only, leaving the reasoning text untouched', () => {
+      const view = render(
+        <ReasoningRow renderSlot={renderSlot} useDisclosure={useDisclosure} usePresentation={useDetailedPresentation}
+          text={'Inspect the session\n\nCheck persistence'} running runningFlavor={flavor('Negotiating with Wintermute…')} t={t} />,
+      )
+      expect(view.getByText('Negotiating with Wintermute…')).toBeTruthy()
+      expect(view.queryByText('思考')).toBeNull()
+      // The joke never reaches the content the model produced: the collapsed
+      // row still previews the reasoning's own completed paragraph.
+      expect(view.getByText('Inspect the session')).toBeTruthy()
+    })
+
+    it('keeps the ordinary Think title once the block settles', () => {
+      const view = render(
+        <ReasoningRow renderSlot={renderSlot} useDisclosure={useDisclosure} usePresentation={useDetailedPresentation}
+          text="Inspect the session" running={false} runningFlavor={flavor('Negotiating with Wintermute…')} t={t} />,
+      )
+      expect(view.getByText('思考')).toBeTruthy()
+      expect(view.queryByText('Negotiating with Wintermute…')).toBeNull()
+    })
+
+    it('falls back to the Think title when no theme supplies flavor', () => {
+      const view = render(
+        <ReasoningRow renderSlot={renderSlot} useDisclosure={useDisclosure} usePresentation={useDetailedPresentation}
+          text="Inspect the session" running t={t} />,
+      )
+      expect(view.getByText('思考')).toBeTruthy()
+    })
+  })
+
   it('expands from either Think or the reasoning summary', () => {
     const view = render(
       <AssistantMarkdown renderSlot={renderSlot} useDisclosure={useDisclosure} useGroupAction={useSearchableHidden}

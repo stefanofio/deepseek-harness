@@ -8,8 +8,8 @@ type AssistantNodeViewProps = ChatNodeViewProps<'assistant-step'> & InjectFace<P
 
 /** Streaming, settled, and interrupted Assistant states share one keyed renderer instance. */
 export const AssistantNodeView = memo(function AssistantNodeView({
-  node, groupPart, useDisclosure, useGroupAction, useTurnData, turnProcess, openFile, loadImage, fileMentions,
-  usePresentation, renderSlot, t,
+  node, groupPart, useDisclosure, useGroupAction, useTurnData, turnProcess, openFile, loadImage, renderMessageImages, fileMentions,
+  usePresentation, runningFlavor, renderSlot, t,
 }: AssistantNodeViewProps) {
   const data = node.data
   const turn = node.location.kind === 'turn' || node.location.kind === 'step'
@@ -42,6 +42,7 @@ export const AssistantNodeView = memo(function AssistantNodeView({
       reasoningHidden={reasoningHidden}
       useGroupAction={useGroupAction}
       usePresentation={usePresentation}
+      runningFlavor={runningFlavor}
       renderSlot={renderSlot}
       revealProcess={revealProcess}
       mentions={mentions}

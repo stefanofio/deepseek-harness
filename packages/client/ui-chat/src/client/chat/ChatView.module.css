@@ -180,6 +180,17 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Elapsed time shown beside a themed running label: pushed to the end of the
+   row so the flavor text never displaces the clock, and dimmed so it reads as
+   secondary to whatever line is currently displayed. */
+.runningElapsed {
+  flex: none;
+  margin-left: auto;
+  padding-left: 10px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.72;
+}
+
 .runningIcon {
   position: relative;
   display: inline-flex;

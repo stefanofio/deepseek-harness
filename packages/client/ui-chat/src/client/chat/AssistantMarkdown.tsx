@@ -44,6 +44,11 @@ export interface AssistantMarkdownProps extends
   useGroupAction: UseGroupAction
   /** Live display policy for reasoning summaries. */
   usePresentation: UsePresentation
+  /**
+   * Optional theme-supplied running-title flavor, forwarded to reasoning rows.
+   * Absent in compositions without the theme plugin and in component fixtures.
+   */
+  runningFlavor?: ChatViewSlotProps['runningFlavor']
   /** Reveal the disclosure that hides this reasoning. */
   revealProcess?: (() => void) | undefined
   /** Resolved prose file mentions for this Assistant's closing turn. */
@@ -54,8 +59,8 @@ export interface AssistantMarkdownProps extends
 
 /** Renders non-blank reasoning blocks as independent disclosures alongside the response. */
 export const AssistantMarkdown = memo(function AssistantMarkdown({
-  blocks, streaming, interrupted, loadImage, groupPart, useDisclosure,
-  reasoningHidden = false, usePresentation, revealProcess, mentions, renderSlot, useGroupAction, t,
+  blocks, streaming, interrupted, loadImage, renderMessageImages, groupPart, useDisclosure,
+  reasoningHidden = false, usePresentation, runningFlavor, revealProcess, mentions, renderSlot, useGroupAction, t,
 }: AssistantMarkdownProps) {
   // Stable per locale revision (t identity changes on switch): a fresh object
   // per render would rebuild MarkdownText's component table every chunk.
@@ -101,7 +106,7 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
             useGroupAction={useGroupAction}
           >
             <ReasoningRow text={block.text} running={streaming && i === last} usePresentation={usePresentation}
-              useDisclosure={useDisclosure} renderSlot={renderSlot} t={t} />
+              useDisclosure={useDisclosure} runningFlavor={runningFlavor} renderSlot={renderSlot} t={t} />
           </ProcessReasoning>,
         )
         break

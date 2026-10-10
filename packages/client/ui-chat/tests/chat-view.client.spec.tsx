@@ -753,6 +753,97 @@ describe('ChatView', () => {
     expect(snapshot.nodes.get(omitted)).toBeDefined()
   })
 
+  it('names the live operation of the group the transcript is rendering', () => {
+    // The running status and the process row beside it must agree. An earlier
+    // revision read the turn rail's anchor for the status and the render
+    // entries for the rows — different key spaces — so the status resolved an
+    // unrelated group and named a different operation than the row above it.
+    const snapshot = chatSnapshotFixture({ nodes: [user(1, 'outside'), userInTurn(2, 'inside', 1)] })
+    const h = makeHarness({}, { running: true }, snapshot)
+    const [outside, inside] = snapshot.order.map(key => ({ kind: 'node' as const, key: key as NodeKey }))
+    if (outside === undefined || inside === undefined) throw new Error('expected two Nodes')
+    // Two groups exist; only the second is the live one the status must name.
+    const settled = 'settled-process' as GroupKey
+    const live = 'live-process' as GroupKey
+    const groupStore = new ConversationGroupStore<ProcessGroupData>()
+    groupStore.prepareAndInstall({
+      entries: [{ kind: 'group', key: settled }, outside, { kind: 'group', key: live }],
+      groups: {
+        kind: 'replace',
+        snapshots: [
+          {
+            key: settled,
+            data: {
+              turn: 0,
+              closed: true,
+              summary: { counts: [{ kind: 'search', count: 3 }], running: undefined, runningDetail: '' },
+            },
+            members: [],
+          },
+          {
+            key: live,
+            data: {
+              turn: 1,
+              closed: false,
+              summary: { counts: [{ kind: 'commands', count: 1 }], running: 'commands', runningDetail: '' },
+            },
+            members: [inside],
+          },
+        ],
+      },
+    }, id => snapshot.nodes.get(id))
+    groupStore.publish()
+    h.setGrouped(groupStore)
+    // The theme seam names the operation; asserting on the category it receives
+    // is what pins the pairing, since the copy itself belongs to the theme.
+    const seen: (string | undefined)[] = []
+    // The flow renderer reads the flavor off the same standard props the
+    // harness forwards into ChatFlow, so stage it there rather than as a JSX
+    // prop that the flow owner never sees.
+    h.props.runningFlavor = { operation: (category) => { seen.push(category); return undefined } }
+    const view = render(<h.ChatView {...h.props} />)
+    expect(view.container.querySelector('[data-chat-running]')).not.toBeNull()
+    // The settled group's category must never reach the status line.
+    expect(seen).toContain('commands')
+    expect(seen).not.toContain('search')
+  })
+
+  it.each([
+    'commands', 'code', 'read', 'readImage', 'write', 'edit', 'search',
+    'webSearch', 'webFetch', 'subagents', 'plan', 'questions', 'tools',
+  ] as const)('routes a live %s operation to the running flavor seam', (category) => {
+    // One case per category the Chat layer can report, so a category that stops
+    // reaching the status line — or a lookup that resolves the wrong group —
+    // fails on the category that broke rather than only on the sample.
+    const snapshot = chatSnapshotFixture({ nodes: [user(1, 'outside'), userInTurn(2, 'inside', 1)] })
+    const h = makeHarness({}, { running: true }, snapshot)
+    const [outside, inside] = snapshot.order.map(key => ({ kind: 'node' as const, key: key as NodeKey }))
+    if (outside === undefined || inside === undefined) throw new Error('expected two Nodes')
+    const key = 'live' as GroupKey
+    const groupStore = new ConversationGroupStore<ProcessGroupData>()
+    groupStore.prepareAndInstall({
+      entries: [outside, { kind: 'group', key }],
+      groups: {
+        kind: 'replace',
+        snapshots: [{
+          key,
+          data: {
+            turn: 1,
+            closed: false,
+            summary: { counts: [{ kind: category, count: 1 }], running: category, runningDetail: '' },
+          },
+          members: [inside],
+        }],
+      },
+    }, id => snapshot.nodes.get(id))
+    groupStore.publish()
+    h.setGrouped(groupStore)
+    const seen: (string | undefined)[] = []
+    h.props.runningFlavor = { operation: (reported) => { seen.push(reported); return undefined } }
+    render(<h.ChatView {...h.props} />)
+    expect(seen).toContain(category)
+  })
+
   it('keeps grouped Node instances mounted across presentation modes and group data updates', () => {
     const snapshot = chatSnapshotFixture({ nodes: [user(1, 'outside'), userInTurn(2, 'inside', 1)] })
     const h = makeHarness({}, {}, snapshot)

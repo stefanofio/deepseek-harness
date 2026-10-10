@@ -67,7 +67,13 @@ class ProcessGroup {
     const nodes = this.members.map(member => readNode(input, member.key))
     const unchanged = nodes.length === this.nodes.length && nodes.every((node, index) => node === this.nodes[index])
     const previous = this.snapshot.data
-    const activity = unchanged && previous.closed === closed ? previous.summary : processActivity(nodes)
+    // An unchanged member list still needs a recomputation while the group is
+    // open: a member's own live state moves as its tool progresses, and the
+    // node reference identity does not change with it. Reusing the cached
+    // summary there would freeze the live activity — which is what the running
+    // status names — at whatever it was when the group last regrouped.
+    // Closed groups keep the fast path: their summary is final by definition.
+    const activity = unchanged && previous.closed === closed && closed ? previous.summary : processActivity(nodes)
     const summary = closed ? { counts: activity.counts, running: undefined, runningDetail: '' } : activity
     this.nodes = nodes
     if (previous.closed !== closed || !sameSummary(previous.summary, summary)) {
