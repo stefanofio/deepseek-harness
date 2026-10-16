@@ -10,8 +10,11 @@
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { BoundActions, HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
+<<<<<<< HEAD
 import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { NormalizedBinding } from '@deepseek-ai/dsh-client-shortcuts/protocol'
+=======
+>>>>>>> cb6f4529d (fix(ui-brand-official): render the themed brand, and redraw its mark)
 // Type-only: the ctx.configForms Context merge. Cross-plugin collaboration
 // goes through the service, never a value import (client bundle purity gate).
 import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
@@ -82,8 +85,48 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 
   interface GlobalStandardProps {
+<<<<<<< HEAD
     /** What a themed contribution reads from the theme (see {@link ThemeSeat}). */
     theme?: ThemeSeat
+=======
+    /**
+     * The active theme's running flavor, as one seam with two question forms:
+     * by elapsed time (the rotation) or by the operation actually running
+     * (which the theme names). Either returns `undefined` while no
+     * flavor-bearing theme is active, so the caller keeps its own copy.
+     *
+     * A live operation wins when both are offered, so the line names real work
+     * instead of cycling.
+     *
+     * Optional by design: flavor is decoration, so a transcript renderer, and
+     * every component-spec fixture that feeds props directly, stays valid
+     * without it. Required-global hooks are for data no renderer can omit.
+     */
+    runningFlavor?: {
+      /** Line for an elapsed-time offset, cycling the theme's rotation. */
+      at?: (elapsedMs: number) => RunningTitleFlavor
+      /**
+       * Line for one running operation. Taking the category as an argument
+       * keeps the theme ignorant of the Chat contract: the caller passes the
+       * string it already has.
+       */
+      operation?: (category: string, done: boolean) => RunningTitleFlavor
+    }
+    /**
+     * The active theme id, as a subscribing hook. Published so a contribution
+     * whose artwork differs per theme re-renders when the reader switches
+     * theme, rather than keeping whatever it mounted with.
+     *
+     * Optional for the same reason as {@link runningFlavor}: a composition
+     * without the theme plugin renders no theme-specific artwork at all.
+     */
+    useActiveThemeId?: () => string
+    /**
+     * The product name a theme-active brand letters in place of its own
+     * artwork, already localized by the theme that owns the copy.
+     */
+    themedBrandName?: string
+>>>>>>> cb6f4529d (fix(ui-brand-official): render the themed brand, and redraw its mark)
   }
 }
 
@@ -665,8 +708,19 @@ export function apply(ctx: ClientContext): void {
   // whatever it mounted with. It tracks the same snapshots the presenter
   // applies, so the artwork and the chrome cannot disagree.
   const flavorT = ctx.locale.bind(CYBERPUNK_FLAVOR_NS)
+<<<<<<< HEAD
   const brandT = ctx.locale.bind(CYBERPUNK_FLAVOR_NS)
 
+=======
+  /** The same seat, read for the product name a theme-active brand letters. */
+  const brandT = ctx.locale.bind(CYBERPUNK_FLAVOR_NS)
+  const cyberpunkActive = (): boolean => isCyberpunkActive(theme.getTheme().active.id)
+  // A snapshot source over the active theme id, published as a root standard
+  // hook so the brand occupants re-render when the reader switches theme
+  // instead of keeping whatever mark they mounted with. `getSnapshot` returns
+  // the id string, so it stays reference-stable between changes as the
+  // hook-cache contract requires.
+>>>>>>> cb6f4529d (fix(ui-brand-official): render the themed brand, and redraw its mark)
   let activeThemeId = theme.getTheme().active.id
   const activeThemeListeners = new Set<() => void>()
   const activeThemeIdSource: HostObservable<string> = {
@@ -674,6 +728,33 @@ export function apply(ctx: ClientContext): void {
     subscribe: (listener) => {
       activeThemeListeners.add(listener)
       return () => { activeThemeListeners.delete(listener) }
+<<<<<<< HEAD
+=======
+    },
+  }
+  ctx.effect(() => ctx.on('theme/change', (snapshot) => {
+    if (snapshot.active.id === activeThemeId) return
+    activeThemeId = snapshot.active.id
+    for (const listener of [...activeThemeListeners]) listener()
+  }), 'ui-theme: active theme id source')
+  ctx.effect(() => ctx.slots.provideRoot({
+    hooks: { activeThemeId: activeThemeIdSource },
+    props: {
+      // One entry point for both consumers. The offset is what selects the
+      // line, so a status line cycling on its clock and a title rendering at
+      // zero share this seam instead of two that differ only in cadence.
+      runningFlavor: {
+        at: (elapsedMs: number): RunningTitleFlavor =>
+          cyberpunkActive() ? flavorLineAt(key => flavorT(key), elapsedMs, FLAVOR_INTERVAL_MS) : undefined,
+        operation: (category: string, done: boolean): RunningTitleFlavor =>
+          cyberpunkActive() ? operationLine(key => flavorT(key), category, done) : undefined,
+      },
+      // The name a theme-active brand letters instead of its own artwork. The
+      // brand registrant cannot read this plugin's locale namespace (client
+      // packages take no value edge on each other), so the theme publishes the
+      // already-localized line here.
+      themedBrandName: brandT(BRAND_NAME_KEY),
+>>>>>>> cb6f4529d (fix(ui-brand-official): render the themed brand, and redraw its mark)
     },
   }
   ctx.effect(() => ctx.on('theme/change', (snapshot) => {

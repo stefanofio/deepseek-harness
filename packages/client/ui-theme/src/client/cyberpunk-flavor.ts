@@ -79,6 +79,7 @@ export const zh = {
   'op.done.questions': '网络行者已回复',
   'op.tools': '正在装载软体…',
   'op.done.tools': '软体已装载',
+  'brand.name': '深寻终端',
 } satisfies Record<string, string>
 
 /** The cyberpunk flavor key union. */
@@ -130,9 +131,19 @@ export const en = {
   'op.done.questions': 'Netrunner responded',
   'op.tools': 'Jacking a soft\u2026',
   'op.done.tools': 'Soft jacked',
+  'brand.name': 'DEEPSEEK HARNESS',
 } satisfies Record<FlavorKey, string>
 
-/** Every flavor key, in rotation order. */
+/** Dictionary key holding the brand name the cyberpunk wordmark letters. */
+export const BRAND_NAME_KEY = 'brand.name' satisfies FlavorKey
+
+/**
+ * Every rotation key, in rotation order.
+ *
+ * The brand name shares this dictionary because it is the same theme's copy,
+ * but it is not a running-status line: it is excluded from the rotation so a
+ * running row can never advertise the product name as its progress report.
+ */
 export const FLAVOR_KEYS: readonly FlavorKey[] = Object.freeze(
   Object.keys(zh).sort() as FlavorKey[],
 )

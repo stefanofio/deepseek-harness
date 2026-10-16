@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { apply, inject } from '../src/client/index.ts'
-import { OfficialBrandMark, OfficialBrandName } from '../src/client/Brand.tsx'
+import { OfficialBrandMark, OfficialBrandName, OfficialHeroMark } from '../src/client/Brand.tsx'
 import { apply as hostApply } from '../src/index.ts'
 
 afterEach(() => {
@@ -40,15 +40,19 @@ describe('official browser-brand plugin', () => {
     expect(inject).toEqual(['slots'])
   })
 
-  it('leaves every slot empty outside the official build profile', async () => {
+  it('registers every occupant regardless of the build profile', async () => {
+    // The occupants choose their own artwork from the active-theme hook, so
+    // registering unconditionally cannot change what a composition without the
+    // theme plugin renders. Skipping the registration outside the official
+    // profile made the themed artwork unreachable in exactly the builds a
+    // reader uses to evaluate it.
     vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'local')
     const subject = await bench()
     await subject.ctx.plugin({ inject: [...inject], apply }).await()
-    for (const hole of HOLES) expect(subject.slots.entries(hole)).toHaveLength(0)
+    for (const hole of HOLES) expect(subject.slots.entries(hole)).toHaveLength(1)
   })
 
   it('fills declarations before or after apply and removes every occupant on teardown', async () => {
-    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'official')
     const before = await bench()
     const fiber = before.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
@@ -71,11 +75,10 @@ describe('official browser-brand plugin', () => {
     for (const hole of HOLES) expect(after.slots.entries(hole)).toHaveLength(1)
   })
 
-  it('leaves the conversation hero on its declaring fallback even in official builds', async () => {
-    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'official')
+  it('claims the conversation hero as well, so a theme can select its own mark there', async () => {
     const subject = await bench()
     await subject.ctx.plugin({ inject: [...inject], apply }).await()
-    expect(subject.slots.entries(HERO_HOLE)).toHaveLength(0)
+    expect(subject.slots.entries(HERO_HOLE)).toHaveLength(1)
   })
 
   it('renders the official name independently from both requested mark sizes', () => {
@@ -87,5 +90,48 @@ describe('official browser-brand plugin', () => {
     expect(mark.container.querySelector('svg')?.getAttribute('width')).toBe('34')
     mark.rerender(<OfficialBrandMark size={24} />)
     expect(mark.container.querySelector('svg')?.getAttribute('width')).toBe('24')
+  })
+
+  it('keeps every official mark and the wordmark when no theme hook is published', () => {
+    // A composition without the theme plugin has no server-rendered theme id,
+    // so the brand must stay the whale rather than render nothing.
+    const mark = render(<OfficialBrandMark size={24} />)
+    expect(mark.container.querySelector('svg')).not.toBeNull()
+    mark.unmount()
+
+    const hero = render(<OfficialHeroMark size={34} />)
+    expect(hero.container.querySelector('svg')).not.toBeNull()
+    hero.unmount()
+
+    const name = render(<OfficialBrandName />)
+    expect(name.container.querySelector('svg')?.getAttribute('viewBox')).toBe('26 0 156 24')
+  })
+
+  it('swaps to the ICE mark and lettered name while cyberpunk is active', () => {
+    // The global seat delivers a plain zero-argument getter, matching the
+    // theme's own `useActiveThemeId?: () => string` declaration. Stubbing a
+    // selector-shaped hook here would compile and pass while the real one
+    // returned the id unchanged into a comparison that could never succeed.
+    const forTheme = (id: string) => () => id
+
+    const mark = render(<OfficialBrandMark size={24} useActiveThemeId={forTheme('cyberpunk')} />)
+    expect(mark.container.querySelector('[data-cyber-ice]')).not.toBeNull()
+    mark.unmount()
+
+    const hero = render(<OfficialHeroMark size={34} useActiveThemeId={forTheme('cyberpunk')} />)
+    expect(hero.container.querySelector('[data-cyber-ice]')).not.toBeNull()
+    hero.unmount()
+
+    const name = render(
+      <OfficialBrandName useActiveThemeId={forTheme('cyberpunk')} themedBrandName="DEEPSEEK HARNESS" />,
+    )
+    expect(name.container.querySelector('[data-cyber-wordmark]')).not.toBeNull()
+    expect(name.container.textContent).toBe('DEEPSEEK HARNESS')
+    name.unmount()
+
+    // The whale stays the fallback for every other theme id.
+    const dark = render(<OfficialBrandMark size={24} useActiveThemeId={forTheme('dark')} />)
+    expect(dark.container.querySelector('[data-cyber-ice]')).toBeNull()
+    expect(dark.container.querySelector('svg')).not.toBeNull()
   })
 })

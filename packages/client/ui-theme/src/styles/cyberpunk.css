@@ -873,3 +873,82 @@ body[data-dsh-theme='cyberpunk'][data-dsh-intensity='extreme']::after {
     animation: none;
   }
 }
+
+/* --- Brand: the ICE mark and lettered name ------------------------------ */
+
+/* The mark stands in for the whale's silhouette, so it inherits the brand
+   accent and gains the same neon bloom the theme's other chrome carries. The
+   glow rides a drop-shadow filter rather than a text-shadow because the mark is
+   a filled path; it is the one place the theme tints the mark itself rather
+   than a surrounding surface. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-ice] {
+  color: var(--dsh-cyber-neon);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--dsh-cyber-neon) 55%, transparent));
+}
+
+/* The core carries the accent rather than the shard, so the silhouette reads as
+   a casing holding something lit. The shard keeps the brand red; a single
+   accent colour across the whole mark left it flat at small sizes. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-ice-core] {
+  color: var(--dsh-cyber-blue);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--dsh-cyber-blue) 75%, transparent));
+}
+
+/* The socket bore is a cut-out, not a stroke: it paints the surface behind the
+   shard so the core reads as seated in the mark rather than floating over it.
+   The board token is the same surface the sidebar paints, so the bore matches
+   wherever the mark is placed. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-ice-bore] {
+  fill: var(--dsh-cyber-board, #0b0714);
+}
+
+/* The sidebar height budget is 24px and the official wordmark is art laid out
+   to that box; the lettered name keeps the same box so the row cannot grow.
+   `nowrap` is load-bearing: the name is wider than a narrow sidebar's text
+   column, and without it the letterforms wrapped onto a second line and
+   overlapped the mark. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-wordmark] {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  height: 24px;
+  white-space: nowrap;
+}
+
+/* Chromatic split: two offset copies of the glyph under the crisp one, in the
+   theme's crimson and teal, so the name reads as printed ink separating rather
+   than a coloured glow. Tracking and case carry the console register, sized so
+   the full name stays on one line inside the sidebar's text column. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-wordmark-text] {
+  position: relative;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 24px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--dsh-cyber-title);
+  text-shadow:
+    calc(-1 * var(--dsh-cyber-aberration)) 0 color-mix(in srgb, var(--dsh-cyber-neon-alt) 70%, transparent),
+    var(--dsh-cyber-aberration) 0 color-mix(in srgb, var(--dsh-cyber-maroon) 80%, transparent);
+}
+
+/* The rule under the name is the accent bar the theme puts under section
+   titles, drawn inside the 24px box rather than offset out of it: the previous
+   `translateY(12px)` pushed it past the height budget and into the row below. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-wordmark]::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 2px;
+  width: 34px;
+  height: 2px;
+  background: var(--dsh-cyber-neon);
+  opacity: 0.75;
+}
+
+/* Reduced motion already drops the mark's SMIL timeline through the caller's
+   preference check; the drop-shadow is static and stays. The underline is
+   positioned rather than animated, so nothing here needs disabling. */
