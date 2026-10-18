@@ -173,7 +173,7 @@ describe('ui-theme apply', () => {
   it('adopts all durable font sizes together after a refused batch settles', async () => {
     const host = stubConfigForm<ThemeSettings>()
     const section: ThemeSettings = { preference: 'system', fontSize: 14, codeFontSize: 11, terminalFontSize: 13,
-      textFontFamily: '', codeFontFamily: '', terminalFontFamily: '' }
+      textFontFamily: '', codeFontFamily: '', terminalFontFamily: '', intensity: 'standard' }
     host.publish({ status: 'ready', value: section, revision: 1, writable: true })
     const { theme, keyboard } = await keyboardTheme(host)
     const write = Promise.withResolvers<boolean>()
@@ -297,6 +297,29 @@ describe('ui-theme apply', () => {
 
   it('declares the slot and locale services', () => {
     expect(inject).toEqual(['slots', 'locale', 'remote', 'configForms'])
+  })
+
+  it('publishes the theme seat as a root prop, republished on a theme switch', async () => {
+    const b = await bench()
+    declareItems(b.slots)
+    const provideRoot = vi.spyOn(b.slots, 'provideRoot')
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const seats = () => provideRoot.mock.calls.map(([contribution]) => contribution.props?.['theme'])
+
+    // A root hook named `theme` reaches slots as the `useTheme` selector, so the
+    // seat must ride the prop channel the slot contract declares.
+    expect(provideRoot.mock.calls[0]?.[0].hooks).toBeUndefined()
+    expect(seats()[0]).toMatchObject({ activeThemeId: 'light' })
+    const first = seats()[0]
+    expect(first).toHaveProperty('tickRunningFlavor', expect.any(Function))
+    expect(first).toHaveProperty('runningOperationLine', expect.any(Function))
+
+    // A switch replaces the seat so slots drawing themed artwork re-render.
+    ;(b.ctx.get('theme') as ThemeRuntime).setTheme('cyberpunk')
+    const last = seats().at(-1)
+    expect(last).toMatchObject({ activeThemeId: 'cyberpunk' })
+    expect(last).not.toBe(first)
+    await b.ctx.fiber.dispose()
   })
 
   it('provides the service, registers localized copy, and registers the Appearance and font rows (declaration before or after apply)', async () => {

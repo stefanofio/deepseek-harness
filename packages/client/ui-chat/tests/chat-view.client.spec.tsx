@@ -800,7 +800,12 @@ describe('ChatView', () => {
     // The flow renderer reads the flavor off the same standard props the
     // harness forwards into ChatFlow, so stage it there rather than as a JSX
     // prop that the flow owner never sees.
-    h.props.runningFlavor = { operation: (category) => { seen.push(category); return undefined } }
+    h.props.theme = {
+      activeThemeId: 'cyberpunk',
+      runningFlavor: undefined,
+      runningOperationLine: (category: string) => { seen.push(category); return undefined },
+      tickRunningFlavor: () => {},
+    }
     const view = render(<h.ChatView {...h.props} />)
     expect(view.container.querySelector('[data-chat-running]')).not.toBeNull()
     // The settled group's category must never reach the status line.
@@ -839,7 +844,12 @@ describe('ChatView', () => {
     groupStore.publish()
     h.setGrouped(groupStore)
     const seen: (string | undefined)[] = []
-    h.props.runningFlavor = { operation: (reported) => { seen.push(reported); return undefined } }
+    h.props.theme = {
+      activeThemeId: 'cyberpunk',
+      runningFlavor: undefined,
+      runningOperationLine: (reported: string) => { seen.push(reported); return undefined },
+      tickRunningFlavor: () => {},
+    }
     render(<h.ChatView {...h.props} />)
     expect(seen).toContain(category)
   })

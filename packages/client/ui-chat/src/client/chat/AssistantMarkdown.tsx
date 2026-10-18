@@ -4,6 +4,7 @@ import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ReactNode } from 'react'
 import { JsonBlock, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MarkdownFileMentions, MarkdownPathImages } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { ThemeSeat } from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { ChatNodeOwnerProps, ChatViewSlotProps, UseDisclosure, UsePresentation, UseGroupAction } from '../contract/slots.ts'
 import type { AssistantBlock } from '../contract/snapshot.ts'
 import { markdownLabels } from '../markdown-labels.ts'
@@ -45,10 +46,10 @@ export interface AssistantMarkdownProps extends
   /** Live display policy for reasoning summaries. */
   usePresentation: UsePresentation
   /**
-   * Optional theme-supplied running-title flavor, forwarded to reasoning rows.
+   * Optional theme seat, forwarded so reasoning rows can flavor their title.
    * Absent in compositions without the theme plugin and in component fixtures.
    */
-  runningFlavor?: ChatViewSlotProps['runningFlavor']
+  theme?: ThemeSeat | undefined
   /** Reveal the disclosure that hides this reasoning. */
   revealProcess?: (() => void) | undefined
   /** Resolved prose file mentions for this Assistant's closing turn. */
@@ -59,8 +60,8 @@ export interface AssistantMarkdownProps extends
 
 /** Renders non-blank reasoning blocks as independent disclosures alongside the response. */
 export const AssistantMarkdown = memo(function AssistantMarkdown({
-  blocks, streaming, interrupted, loadImage, renderMessageImages, groupPart, useDisclosure,
-  reasoningHidden = false, usePresentation, runningFlavor, revealProcess, mentions, renderSlot, useGroupAction, t,
+  blocks, streaming, interrupted, loadImage, groupPart, useDisclosure,
+  reasoningHidden = false, usePresentation, theme, revealProcess, mentions, renderSlot, useGroupAction, t,
 }: AssistantMarkdownProps) {
   // Stable per locale revision (t identity changes on switch): a fresh object
   // per render would rebuild MarkdownText's component table every chunk.
@@ -106,7 +107,7 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
             useGroupAction={useGroupAction}
           >
             <ReasoningRow text={block.text} running={streaming && i === last} usePresentation={usePresentation}
-              useDisclosure={useDisclosure} runningFlavor={runningFlavor} renderSlot={renderSlot} t={t} />
+              useDisclosure={useDisclosure} theme={theme} renderSlot={renderSlot} t={t} />
           </ProcessReasoning>,
         )
         break

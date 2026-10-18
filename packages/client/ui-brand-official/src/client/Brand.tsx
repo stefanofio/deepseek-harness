@@ -2,10 +2,10 @@ import { BrandWordmark, FishLogo } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { HeroBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SidebarBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-// Type-only: pulls the theme plugin's GlobalStandardProps merge for
-// `useActiveThemeId`, the hook that selects the themed artwork. No value
-// crosses packages here — the hook arrives through the slot standard kit, which
-// every slot receives regardless of scope.
+// Type-only: pulls the theme plugin's GlobalStandardProps merge for the
+// `theme` seat that selects the themed artwork. No value crosses packages here
+// — the seat arrives through the slot standard kit, which every slot receives
+// regardless of scope.
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import { HeroCyberMark, IceBrandMark, IceBrandName } from './CyberpunkMark.tsx'
 
@@ -18,27 +18,22 @@ import { HeroCyberMark, IceBrandMark, IceBrandName } from './CyberpunkMark.tsx'
  */
 const CYBERPUNK_THEME_ID = 'cyberpunk'
 
-/** Global seat as this package consumes it: the active-theme selector hook. */
+/** Global seat as this package consumes it: the published theme seat. */
 type BrandStandardProps = PropsRuntime<'sidebar.brand.mark'>
 
 /**
  * Read whether the cyberpunk theme is active.
  *
- * The hook is optional on the global seat: a composition assembled without the
- * theme plugin (component specs, stripped builds) publishes no active-theme
- * source at all, and the brand keeps the official whale rather than throwing.
- * @param useActiveThemeId - the theme hook from the global seat, when present.
+ * The seat is optional: a composition assembled without the theme plugin
+ * (component specs, stripped builds) publishes no seat at all, and the brand
+ * keeps the official whale rather than throwing.
+ * @param theme - the theme seat from the global standard kit, when present.
  * @returns whether the themed artwork should be drawn.
  */
-function useCyberpunk(
-  useActiveThemeId: BrandStandardProps['useActiveThemeId'],
+function isCyberpunk(
+  theme: BrandStandardProps['theme'],
 ): boolean {
-  // Optional-hook call order stays stable across compositions with and without
-  // the theme plugin: both branches call the same hook (or none), never a
-  // conditional hook.
-  return useActiveThemeId === undefined
-    ? false
-    : useActiveThemeId() === CYBERPUNK_THEME_ID
+  return theme?.activeThemeId === CYBERPUNK_THEME_ID
 }
 
 /**
@@ -49,13 +44,13 @@ function useCyberpunk(
  * registers a competing occupant, because the renderer stops consulting the
  * declaring package's fallback as soon as any occupant exists, and an occupant
  * that returned `null` would leave the slot empty rather than falling back.
- * @param props - Host-supplied mark presentation plus the theme hook.
+ * @param props - Host-supplied mark presentation plus the theme seat.
  * @returns the active theme's mark.
  */
 export function OfficialBrandMark({
-  size, useActiveThemeId,
-}: SidebarBrandMarkOwnerProps & Pick<BrandStandardProps, 'useActiveThemeId'>) {
-  return useCyberpunk(useActiveThemeId) ? <IceBrandMark size={size} /> : <FishLogo size={size} />
+  size, theme,
+}: SidebarBrandMarkOwnerProps & Pick<BrandStandardProps, 'theme'>) {
+  return isCyberpunk(theme) ? <IceBrandMark size={size} /> : <FishLogo size={size} />
 }
 
 /**
@@ -65,13 +60,13 @@ export function OfficialBrandMark({
  * package's animated-fish fallback. It now registers an occupant so the
  * cyberpunk mark can take it, and that occupant reproduces the official whale
  * itself for every other theme.
- * @param props - Host-supplied mark presentation plus the theme hook.
+ * @param props - Host-supplied mark presentation plus the theme seat.
  * @returns the active theme's hero mark.
  */
 export function OfficialHeroMark({
-  size, className, useActiveThemeId,
-}: HeroBrandMarkOwnerProps & Pick<BrandStandardProps, 'useActiveThemeId'>) {
-  return useCyberpunk(useActiveThemeId)
+  size, className, theme,
+}: HeroBrandMarkOwnerProps & Pick<BrandStandardProps, 'theme'>) {
+  return isCyberpunk(theme)
     ? <HeroCyberMark size={size} className={className} />
     : <OfficialHeroFish className={className} />
 }
@@ -98,13 +93,14 @@ function OfficialHeroFish({ className }: { className?: string | undefined }) {
  * published by the theme plugin, already localized, because this package cannot
  * read that plugin's locale namespace.
  * @param props.themedBrandName - the theme's localized product name, if any.
- * @param props.useActiveThemeId - the theme hook from the global seat.
+ * @param props.theme - the theme seat from the global standard kit.
  * @returns the active theme's name artwork.
  */
 export function OfficialBrandName({
-  themedBrandName, useActiveThemeId,
-}: Pick<BrandStandardProps, 'themedBrandName'>) {
-  if (useCyberpunk(useActiveThemeId) && themedBrandName !== undefined) {
+  theme,
+}: Pick<BrandStandardProps, 'theme'>) {
+  const themedBrandName = theme?.themedBrandName
+  if (isCyberpunk(theme) && themedBrandName !== undefined) {
     return <IceBrandName name={themedBrandName} />
   }
   return <BrandWordmark includeMark={false} />

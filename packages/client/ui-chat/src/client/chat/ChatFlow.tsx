@@ -1,6 +1,5 @@
 /** Ordered Chat rows, local echoes, and running status share the flow slot's parent. */
-import { memo, useCallback, useMemo } from 'react'
-import type { RenderMessageImages } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import { memo, useMemo } from 'react'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import type { ChatFlowSlotProps } from '../contract/slots.ts'
 import { ChatNodeSeat } from './ChatNodeSeat.tsx'
@@ -14,8 +13,8 @@ export const ChatFlow = memo(function ChatFlow({
   entries, pendingInputs, lastInputTurn, deferCollapse,
   useSession, useChat, useChatNode, useChatNodeBottom, useChatNodeProcess, useChatGroup, usePresentation,
   useStore, actions, renderSlot, renderFactorySlot, t, useGroupAction, useGroupHeaderAction,
-  cwd, openFile, openSkill, inspectCall, forkAt, loadImage, fileMentions,
-  runningFlavor,
+  cwd, openFile, inspectCall, forkAt, loadImage, fileMentions,
+  theme,
 }: ChatFlowSlotProps) {
   const nodeStore = useChat(snapshot => snapshot.nodes)
   const running = useSession(snapshot => snapshot.running)
@@ -42,10 +41,6 @@ export const ChatFlow = memo(function ChatFlow({
   }, [entries])
   const runningActivity = useChatGroup(liveGroupKey ?? '', group =>
     group?.data.closed === false ? group.data.summary.running : undefined)
-  const renderMessageImages = useCallback<RenderMessageImages>(
-    owner => renderSlot('conversation.message.images', { ...owner, loadImage }),
-    [loadImage, renderSlot],
-  )
   const seatProps = {
     nodeStore, useChatNode, useChatNodeBottom, useChatNodeProcess, usePresentation,
     useStore, actions, renderSlot, t, useGroupAction, deferCollapse,
@@ -80,5 +75,5 @@ export const ChatFlow = memo(function ChatFlow({
     if (index !== -1) rows.splice(rows.length - 1, 0, ...pendingRows.splice(index, 1))
   }
   return [...rows, ...pendingRows, ...running ? [<RunningStatus key="running" startTime={runningStartTime} t={t}
-    runningFlavor={runningFlavor} activity={runningActivity} />] : []]
+    theme={theme} activity={runningActivity} />] : []]
 })

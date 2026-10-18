@@ -301,13 +301,18 @@ describe('ReasoningRow', () => {
   })
 
   describe('theme-supplied running-title flavor', () => {
-    // The consolidated seam exposes the rotation under `at`.
-    const flavor = (value: string) => ({ at: () => value }) as never
+    // The seat carries the rotation as a plain value.
+    const flavor = (value: string) => ({
+      activeThemeId: 'cyberpunk',
+      runningFlavor: value,
+      runningOperationLine: () => undefined,
+      tickRunningFlavor: () => {},
+    }) as never
 
     it('replaces the running title only, leaving the reasoning text untouched', () => {
       const view = render(
         <ReasoningRow renderSlot={renderSlot} useDisclosure={useDisclosure} usePresentation={useDetailedPresentation}
-          text={'Inspect the session\n\nCheck persistence'} running runningFlavor={flavor('Negotiating with Wintermute…')} t={t} />,
+          text={'Inspect the session\n\nCheck persistence'} running theme={flavor('Negotiating with Wintermute…')} t={t} />,
       )
       expect(view.getByText('Negotiating with Wintermute…')).toBeTruthy()
       expect(view.queryByText('思考')).toBeNull()
@@ -319,7 +324,7 @@ describe('ReasoningRow', () => {
     it('keeps the ordinary Think title once the block settles', () => {
       const view = render(
         <ReasoningRow renderSlot={renderSlot} useDisclosure={useDisclosure} usePresentation={useDetailedPresentation}
-          text="Inspect the session" running={false} runningFlavor={flavor('Negotiating with Wintermute…')} t={t} />,
+          text="Inspect the session" running={false} theme={flavor('Negotiating with Wintermute…')} t={t} />,
       )
       expect(view.getByText('思考')).toBeTruthy()
       expect(view.queryByText('Negotiating with Wintermute…')).toBeNull()

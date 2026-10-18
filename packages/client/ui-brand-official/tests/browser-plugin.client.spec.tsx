@@ -108,29 +108,33 @@ describe('official browser-brand plugin', () => {
   })
 
   it('swaps to the ICE mark and lettered name while cyberpunk is active', () => {
-    // The global seat delivers a plain zero-argument getter, matching the
-    // theme's own `useActiveThemeId?: () => string` declaration. Stubbing a
-    // selector-shaped hook here would compile and pass while the real one
-    // returned the id unchanged into a comparison that could never succeed.
-    const forTheme = (id: string) => () => id
+    // The theme publishes one seat carrying the active id, so the brand
+    // compares a plain string. Stubbing a selector-shaped hook here would
+    // compile and pass while the real seat never satisfied the comparison.
+    const seatFor = (id: string) => ({
+      activeThemeId: id,
+      runningFlavor: undefined,
+      runningOperationLine: () => undefined,
+      tickRunningFlavor: () => {},
+    })
 
-    const mark = render(<OfficialBrandMark size={24} useActiveThemeId={forTheme('cyberpunk')} />)
+    const mark = render(<OfficialBrandMark size={24} theme={seatFor('cyberpunk')} />)
     expect(mark.container.querySelector('[data-cyber-ice]')).not.toBeNull()
     mark.unmount()
 
-    const hero = render(<OfficialHeroMark size={34} useActiveThemeId={forTheme('cyberpunk')} />)
+    const hero = render(<OfficialHeroMark size={34} theme={seatFor('cyberpunk')} />)
     expect(hero.container.querySelector('[data-cyber-ice]')).not.toBeNull()
     hero.unmount()
 
     const name = render(
-      <OfficialBrandName useActiveThemeId={forTheme('cyberpunk')} themedBrandName="DEEPSEEK HARNESS" />,
+      <OfficialBrandName theme={{ ...seatFor('cyberpunk'), themedBrandName: 'DEEPSEEK HARNESS' }} />,
     )
     expect(name.container.querySelector('[data-cyber-wordmark]')).not.toBeNull()
     expect(name.container.textContent).toBe('DEEPSEEK HARNESS')
     name.unmount()
 
     // The whale stays the fallback for every other theme id.
-    const dark = render(<OfficialBrandMark size={24} useActiveThemeId={forTheme('dark')} />)
+    const dark = render(<OfficialBrandMark size={24} theme={seatFor('dark')} />)
     expect(dark.container.querySelector('[data-cyber-ice]')).toBeNull()
     expect(dark.container.querySelector('svg')).not.toBeNull()
   })

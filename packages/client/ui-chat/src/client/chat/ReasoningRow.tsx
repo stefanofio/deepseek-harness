@@ -2,6 +2,7 @@
 import { memo, useMemo } from 'react'
 import { DisclosureRow, IconThinkOutlineRegular, TextShimmer } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
+import type { ThemeSeat } from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { ChatViewSlotProps, UseDisclosure, UsePresentation } from '../contract/slots.ts'
 import a11yCss from './accessibility.module.css'
 import css from './ReasoningRow.module.css'
@@ -46,19 +47,19 @@ function latestCompletedParagraphFirstLine(text: string): string {
  * @param props.running - whether this block is the streaming tail.
  * @param props.usePresentation - live display-policy selector for this reasoning row.
  * @param props.useDisclosure - independent open state with enclosing-Turn resets.
- * @param props.runningFlavor - optional theme-supplied running-title flavor key.
+ * @param props.theme - optional theme seat; its running flavor replaces the title.
  * @param props.renderSlot - framework renderer for the standard reasoning Body Slot.
  * @param props.t - conversation locale seat for the disclosure and running status.
  * @returns the reasoning disclosure.
  */
 export const ReasoningRow = memo(function ReasoningRow({
-  text, running, usePresentation, useDisclosure, runningFlavor, renderSlot, t,
+  text, running, usePresentation, useDisclosure, theme, renderSlot, t,
 }: {
   text: string
   running: boolean
   useDisclosure: UseDisclosure
   usePresentation: UsePresentation
-  runningFlavor?: ChatViewSlotProps['runningFlavor']
+  theme?: ThemeSeat | undefined
   t: ChatViewSlotProps['t']
 } & Pick<PropsRenderSlots<'conversation.chat.reasoning.body'>, 'renderSlot'>) {
   const { expanded, toggle } = useDisclosure()
@@ -68,7 +69,7 @@ export const ReasoningRow = memo(function ReasoningRow({
   // another plugin's namespace ever reaches this component's `t`. A reasoning
   // title shows the rotation's first line rather than cycling: the status line
   // below the transcript is what carries the advancing sequence.
-  const flavor = runningFlavor?.at?.(0)
+  const flavor = theme?.runningFlavor
   const title = running && flavor !== undefined ? flavor : t('message.think')
   const summaryText = running ? latestCompletedParagraphFirstLine(text) : firstLine(text)
   const summary = useMemo(() => summaryText.replaceAll('**', ''), [summaryText])

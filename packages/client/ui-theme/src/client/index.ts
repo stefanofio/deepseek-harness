@@ -9,12 +9,9 @@
  * surface. Desktop shortcuts adjust text, code, and terminal font sizes together.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import type { BoundActions, HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
-<<<<<<< HEAD
 import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { NormalizedBinding } from '@deepseek-ai/dsh-client-shortcuts/protocol'
-=======
->>>>>>> cb6f4529d (fix(ui-brand-official): render the themed brand, and redraw its mark)
+import type { BoundActions } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: the ctx.configForms Context merge. Cross-plugin collaboration
 // goes through the service, never a value import (client bundle purity gate).
 import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
@@ -56,11 +53,11 @@ export const SETTINGS_NS = 'settings.theme'
 
 /**
  * What the theme publishes to every slot: the active theme, the running
- * rotation, and the operation-flavored line.
+ * flavor, and the operation-flavored line.
  *
- * Every member is optional. Flavor is decoration, so a transcript renderer and
- * every component-spec fixture that feeds props directly stays valid without
- * the theme plugin; required global seats are for data no renderer can omit.
+ * The seat itself is optional: flavor is decoration, so a transcript renderer
+ * and every component-spec fixture that feeds props directly stays valid
+ * without the theme plugin. Only `themedBrandName` is optional within the seat.
  */
 export interface ThemeSeat {
   /** The active theme id, so per-theme artwork re-renders on a switch. */
@@ -74,6 +71,11 @@ export interface ThemeSeat {
    * clock, so the theme runs no timer of its own.
    */
   readonly tickRunningFlavor: (elapsedMs: number) => void
+  /**
+   * The product name a theme-active brand letters in place of its own artwork,
+   * already localized by the theme that owns the copy.
+   */
+  readonly themedBrandName?: string
 }
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -85,48 +87,12 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 
   interface GlobalStandardProps {
-<<<<<<< HEAD
-    /** What a themed contribution reads from the theme (see {@link ThemeSeat}). */
+    /**
+     * What a themed contribution reads from the theme (see {@link ThemeSeat}).
+     * Absent in compositions without the theme plugin, so consumers fall back
+     * to their own artwork and copy.
+     */
     theme?: ThemeSeat
-=======
-    /**
-     * The active theme's running flavor, as one seam with two question forms:
-     * by elapsed time (the rotation) or by the operation actually running
-     * (which the theme names). Either returns `undefined` while no
-     * flavor-bearing theme is active, so the caller keeps its own copy.
-     *
-     * A live operation wins when both are offered, so the line names real work
-     * instead of cycling.
-     *
-     * Optional by design: flavor is decoration, so a transcript renderer, and
-     * every component-spec fixture that feeds props directly, stays valid
-     * without it. Required-global hooks are for data no renderer can omit.
-     */
-    runningFlavor?: {
-      /** Line for an elapsed-time offset, cycling the theme's rotation. */
-      at?: (elapsedMs: number) => RunningTitleFlavor
-      /**
-       * Line for one running operation. Taking the category as an argument
-       * keeps the theme ignorant of the Chat contract: the caller passes the
-       * string it already has.
-       */
-      operation?: (category: string, done: boolean) => RunningTitleFlavor
-    }
-    /**
-     * The active theme id, as a subscribing hook. Published so a contribution
-     * whose artwork differs per theme re-renders when the reader switches
-     * theme, rather than keeping whatever it mounted with.
-     *
-     * Optional for the same reason as {@link runningFlavor}: a composition
-     * without the theme plugin renders no theme-specific artwork at all.
-     */
-    useActiveThemeId?: () => string
-    /**
-     * The product name a theme-active brand letters in place of its own
-     * artwork, already localized by the theme that owns the copy.
-     */
-    themedBrandName?: string
->>>>>>> cb6f4529d (fix(ui-brand-official): render the themed brand, and redraw its mark)
   }
 }
 
@@ -699,131 +665,59 @@ export const inject = ['slots', 'locale', 'remote', 'configForms']
 export function apply(ctx: ClientContext): void {
   installThemeStyles(ctx)
   ctx.effect(() => ctx.locale.register(SETTINGS_NS, { zh, en }), 'ui-theme: settings row dictionaries')
+  ctx.effect(() => ctx.locale.register(CYBERPUNK_FLAVOR_NS, { zh: flavorZh, en: flavorEn }),
+    'ui-theme: cyberpunk flavor dictionaries')
   const host = ctx.configForms.get<ThemeSettings>(THEME_SETTINGS_NAMESPACE)
   const theme = new ThemeRuntime(ctx, host)
   ctx.provide('theme', theme)
 
-  // The active theme id as a subscribing source: a contribution whose artwork
-  // differs per theme re-renders when the reader switches, instead of keeping
-  // whatever it mounted with. It tracks the same snapshots the presenter
+  // The seat carries the active theme id, so a contribution whose artwork
+  // differs per theme re-renders when the reader switches instead of keeping
+  // whatever it mounted with. It reads the same snapshots the presenter
   // applies, so the artwork and the chrome cannot disagree.
   const flavorT = ctx.locale.bind(CYBERPUNK_FLAVOR_NS)
-<<<<<<< HEAD
-  const brandT = ctx.locale.bind(CYBERPUNK_FLAVOR_NS)
-
-=======
-  /** The same seat, read for the product name a theme-active brand letters. */
-  const brandT = ctx.locale.bind(CYBERPUNK_FLAVOR_NS)
   const cyberpunkActive = (): boolean => isCyberpunkActive(theme.getTheme().active.id)
-  // A snapshot source over the active theme id, published as a root standard
-  // hook so the brand occupants re-render when the reader switches theme
-  // instead of keeping whatever mark they mounted with. `getSnapshot` returns
-  // the id string, so it stays reference-stable between changes as the
-  // hook-cache contract requires.
->>>>>>> cb6f4529d (fix(ui-brand-official): render the themed brand, and redraw its mark)
-  let activeThemeId = theme.getTheme().active.id
-  const activeThemeListeners = new Set<() => void>()
-  const activeThemeIdSource: HostObservable<string> = {
-    getSnapshot: () => activeThemeId,
-    subscribe: (listener) => {
-      activeThemeListeners.add(listener)
-      return () => { activeThemeListeners.delete(listener) }
-<<<<<<< HEAD
-=======
-    },
-  }
-  ctx.effect(() => ctx.on('theme/change', (snapshot) => {
-    if (snapshot.active.id === activeThemeId) return
-    activeThemeId = snapshot.active.id
-    for (const listener of [...activeThemeListeners]) listener()
-  }), 'ui-theme: active theme id source')
-  ctx.effect(() => ctx.slots.provideRoot({
-    hooks: { activeThemeId: activeThemeIdSource },
-    props: {
-      // One entry point for both consumers. The offset is what selects the
-      // line, so a status line cycling on its clock and a title rendering at
-      // zero share this seam instead of two that differ only in cadence.
-      runningFlavor: {
-        at: (elapsedMs: number): RunningTitleFlavor =>
-          cyberpunkActive() ? flavorLineAt(key => flavorT(key), elapsedMs, FLAVOR_INTERVAL_MS) : undefined,
-        operation: (category: string, done: boolean): RunningTitleFlavor =>
-          cyberpunkActive() ? operationLine(key => flavorT(key), category, done) : undefined,
-      },
-      // The name a theme-active brand letters instead of its own artwork. The
-      // brand registrant cannot read this plugin's locale namespace (client
-      // packages take no value edge on each other), so the theme publishes the
-      // already-localized line here.
-      themedBrandName: brandT(BRAND_NAME_KEY),
->>>>>>> cb6f4529d (fix(ui-brand-official): render the themed brand, and redraw its mark)
-    },
-  }
-  ctx.effect(() => ctx.on('theme/change', (snapshot) => {
-    if (snapshot.active.id === activeThemeId) return
-    activeThemeId = snapshot.active.id
-    for (const listener of [...activeThemeListeners]) listener()
-    rebuildThemeSeat()
-  }), 'ui-theme: active theme id source')
 
-  // Flavor is an observable source rather than a plain prop because a prop
-  // would occupy a global standard seat, and every seat is charged against
-  // every slot's catalog budget whether or not that slot reads it. The
-  // subscriber count is the elapsed-time clock the status line already runs.
+  // The seat is a plain root prop, not a root hook: root hooks reach a slot as
+  // `use<Name>` selector hooks, and the slot contract declares `theme` as a
+  // value. Publishing it as a prop also keeps the clock out of React state —
+  // the status line advances the flavor from the tick it already re-renders on.
   let flavorNow = 0
-  const flavorListeners = new Set<() => void>()
-  const runningFlavorSource: HostObservable<RunningTitleFlavor> = {
-    getSnapshot: () => cyberpunkActive()
-      ? flavorLineAt(key => flavorT(key), flavorNow, FLAVOR_INTERVAL_MS)
-      : undefined,
-    subscribe: (listener) => {
-      flavorListeners.add(listener)
-      return () => { flavorListeners.delete(listener) }
-    },
-  }
-  const tickFlavor = (elapsedMs: number): void => {
-    if (elapsedMs === flavorNow) return
-    flavorNow = elapsedMs
-    for (const listener of [...flavorListeners]) listener()
-  }
-  // One hook carries the whole seat, so the theme costs the catalog budget a
-  // single member instead of one per fact. The snapshot is rebuilt only when
-  // the theme or the flavor offset moves, which the hook contract requires.
-  let themeSeat: ThemeSeat = buildThemeSeat()
+  const flavorAt = (elapsedMs: number): RunningTitleFlavor =>
+    cyberpunkActive() ? flavorLineAt(key => flavorT(key), elapsedMs, FLAVOR_INTERVAL_MS) : undefined
   function buildThemeSeat(): ThemeSeat {
     return {
-      activeThemeId,
-      runningFlavor: runningFlavorSource.getSnapshot(),
+      activeThemeId: theme.getTheme().active.id,
+      runningFlavor: flavorAt(flavorNow),
       runningOperationLine: (category, done) => cyberpunkActive()
         ? operationLine(key => flavorT(key), category, done)
         : undefined,
-      tickRunningFlavor: (elapsedMs) => {
-        if (elapsedMs === flavorNow) return
-        flavorNow = elapsedMs
-        rebuildThemeSeat()
-      },
+      // A tick is consumed by the row that requested it: the status line reads
+      // the value it just advanced instead of waiting for a republish that
+      // would re-render every slot on the clock's cadence.
+      tickRunningFlavor: (elapsedMs) => { flavorNow = elapsedMs },
+      // The brand registrant cannot read this plugin's locale namespace
+      // (client packages take no value edge on each other), so the theme
+      // publishes the already-localized name here.
+      themedBrandName: flavorT(BRAND_NAME_KEY),
     }
   }
-  const rebuildThemeSeat = (): void => {
-    themeSeat = buildThemeSeat()
-    for (const listener of [...themeSeatListeners]) listener()
-  }
-  const themeSeatListeners = new Set<() => void>()
-  const themeSeatSource: HostObservable<ThemeSeat> = {
-    getSnapshot: () => themeSeat,
-    subscribe: (listener) => {
-      themeSeatListeners.add(listener)
-      return () => { themeSeatListeners.delete(listener) }
-    },
-  }
-  ctx.effect(() => ctx.slots.provideRoot({
-    hooks: { theme: themeSeatSource },
-    props: {
-      // The name a theme-active brand letters instead of its own artwork. The
-      // brand registrant cannot read this plugin's locale namespace (client
-      // packages take no value edge on each other), so the theme publishes the
-      // already-localized line here.
-      themedBrandName: brandT(BRAND_NAME_KEY),
-    },
-  }), 'ui-theme: theme seat')
+  // Republished on every theme switch: the root binding is static, so a switch
+  // must replace it for the slots drawing themed artwork to re-render.
+  let releaseSeat: () => void = () => {}
+  ctx.effect(() => {
+    const install = (): void => {
+      releaseSeat()
+      releaseSeat = ctx.slots.provideRoot({ props: { theme: buildThemeSeat() } })
+    }
+    install()
+    const off = ctx.on('theme/change', install)
+    return () => {
+      off()
+      releaseSeat()
+      releaseSeat = () => {}
+    }
+  }, 'ui-theme: theme seat')
 
   const store = createAppearanceRowStore()
   let bound: BoundActions<typeof store> | undefined

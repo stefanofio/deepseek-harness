@@ -1,6 +1,7 @@
 /** Running Turn clock isolated from the transcript's render cycle. */
 import { memo, useEffect, useState } from 'react'
 import { TextShimmer } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { ThemeSeat } from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import { formatRunDuration, LIVE_RUN_CLOCK_INTERVAL_MS } from './message-chrome.ts'
 import { RunningWhaleTail } from './RunningWhaleTail.tsx'
@@ -11,13 +12,12 @@ interface RunningStatusProps {
   readonly startTime: number | undefined
   readonly t: ChatViewSlotProps['t']
   /**
-   * Optional theme-supplied flavor for the running line. The operation form is
-   * preferred while a tool is live, so the line names real work; the elapsed
-   * form carries the rotation otherwise. Both return `undefined` while no
-   * flavor-bearing theme is active, and the whole seam is absent in
-   * compositions without the theme plugin.
+   * The theme seat. Its operation line is preferred while a tool is live, so
+   * the line names real work; its rotation carries the rest. The whole seat is
+   * absent in compositions without the theme plugin, and its flavor is
+   * `undefined` while no flavor-bearing theme is active.
    */
-  readonly runningFlavor?: ChatViewSlotProps['runningFlavor']
+  readonly theme?: ThemeSeat | undefined
   /** The live operation category, or undefined while only reasoning runs. */
   readonly activity?: string | undefined
 }
@@ -39,7 +39,7 @@ interface RunningStatusProps {
  * @returns the blue running indicator; mount only while the Session is running.
  */
 export const RunningStatus = memo(function RunningStatus({
-  startTime, t, runningFlavor, activity,
+  startTime, t, theme, activity,
 }: RunningStatusProps) {
   const [now, setNow] = useState(Date.now)
   useEffect(() => {
@@ -50,10 +50,13 @@ export const RunningStatus = memo(function RunningStatus({
   }, [startTime])
   const elapsed = startTime === undefined ? undefined : Math.max(1000, now - startTime)
   const duration = elapsed === undefined ? undefined : formatRunDuration(elapsed, t).map(part => part.text).join('')
+  // The caller owns the clock, so advance the theme's offset from the tick that
+  // already re-renders this row rather than making the theme run its own timer.
+  if (elapsed !== undefined) theme?.tickRunningFlavor(elapsed)
   // A live operation names itself; only reasoning (or no activity) falls back
   // to the time rotation.
-  const operation = activity === undefined ? undefined : runningFlavor?.operation?.(activity, false)
-  const flavor = operation ?? (elapsed === undefined ? undefined : runningFlavor?.at?.(elapsed))
+  const operation = activity === undefined ? undefined : theme?.runningOperationLine(activity, false)
+  const flavor = operation ?? theme?.runningFlavor
   const label = flavor ?? (duration === undefined
     ? t('chat.deepDiving')
     : t('chat.deepDivingFor', { duration }))
