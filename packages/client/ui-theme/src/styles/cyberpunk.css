@@ -877,29 +877,29 @@ body[data-dsh-theme='cyberpunk'][data-dsh-intensity='extreme']::after {
 /* --- Brand: the ICE mark and lettered name ------------------------------ */
 
 /* The mark stands in for the whale's silhouette, so it inherits the brand
-   accent and gains the same neon bloom the theme's other chrome carries. The
-   glow rides a drop-shadow filter rather than a text-shadow because the mark is
-   a filled path; it is the one place the theme tints the mark itself rather
-   than a surrounding surface. */
+   accent and gains a neon bloom. The glow rides a drop-shadow filter rather
+   than a text-shadow because the mark is stroked paths. It is kept tight: at
+   the sidebar's 20px render a wide bloom spreads past the ring and erases the
+   silhouette, which is what made the previous mark read as a blob. */
 body[data-dsh-theme='cyberpunk'] [data-cyber-ice] {
   color: var(--dsh-cyber-neon);
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--dsh-cyber-neon) 55%, transparent));
+  filter: drop-shadow(0 0 1.2px color-mix(in srgb, var(--dsh-cyber-neon) 65%, transparent));
 }
 
-/* The core carries the accent rather than the shard, so the silhouette reads as
-   a casing holding something lit. The shard keeps the brand red; a single
-   accent colour across the whole mark left it flat at small sizes. */
+/* The core sigil carries the accent rather than the ring, so the silhouette
+   reads as a casing holding something lit. The ring keeps the brand red; a
+   single accent colour across the whole mark left it flat at small sizes. */
 body[data-dsh-theme='cyberpunk'] [data-cyber-ice-core] {
   color: var(--dsh-cyber-blue);
   filter: drop-shadow(0 0 4px color-mix(in srgb, var(--dsh-cyber-blue) 75%, transparent));
 }
 
-/* The socket bore is a cut-out, not a stroke: it paints the surface behind the
-   shard so the core reads as seated in the mark rather than floating over it.
-   The board token is the same surface the sidebar paints, so the bore matches
-   wherever the mark is placed. */
-body[data-dsh-theme='cyberpunk'] [data-cyber-ice-bore] {
-  fill: var(--dsh-cyber-board, #0b0714);
+/* The contact bar is the mark's one bright accent under the sigil: it names the
+   mark as a device socket rather than a badge, and it is the only detail that
+   survives the 16px render. */
+body[data-dsh-theme='cyberpunk'] [data-cyber-ice-contact] {
+  stroke: var(--dsh-cyber-blue);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--dsh-cyber-blue) 70%, transparent));
 }
 
 /* The sidebar height budget is 24px and the official wordmark is art laid out

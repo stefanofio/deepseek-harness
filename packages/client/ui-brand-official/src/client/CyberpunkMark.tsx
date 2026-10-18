@@ -2,11 +2,12 @@
  * The cyberpunk brand art: the ICE mark and lettered name that replace the
  * official DeepSeek whale while the `cyberpunk` theme is active.
  *
- * The mark is an ICE construct after Neuromancer and the NetWatch iconography of
- * Cyberpunk 2077: a faceted hexagonal shard with a neural-jack core and four
- * circuit traces entering from the edges. It is drawn on its own 24-unit grid
- * rather than reusing the whale viewBox, because the two marks share no
- * geometry — only the slot they occupy.
+ * The mark is an ICE construct after Neuromancer: a hexagonal containment ring
+ * around a solid rhombus sigil, with one contact bar under it. It is drawn on
+ * its own 24-unit grid rather than reusing the whale viewBox, because the two
+ * marks share no geometry — only the slot they occupy. The ring is stroked
+ * rather than filled so the sigil survives the sidebar's 20px render, where a
+ * solid hexagon collapsed into an indistinct blob.
  *
  * Decorative brand art, so it is `aria-hidden` like the whale it replaces; the
  * surfaces that render it keep their own accessible names.
@@ -30,37 +31,26 @@ import type { IconProps } from '@deepseek-ai/dsh-client-ui-primitives'
 export const ICE_MARK_VIEWBOX = 24
 
 /**
- * The outer shard: a beveled hexagon with a notched crown, the ICE silhouette.
+ * The outer shard: a hexagonal ICE ring, stroked rather than filled.
  *
- * Drawn wider than the previous version so the bevels stay legible at the
- * sidebar's 20px render, where sub-unit facets collapse into a blob.
+ * A filled hexagon collapsed into an indistinct blob at the sidebar's 20px
+ * render and read as a generic badge at any size. The open ring keeps a
+ * silhouette at 16px while leaving the middle for the sigil.
  */
-const SHARD_PATH =
-  'M12 1.5 21.5 7V12.8L17.6 16.4 21.5 20V22.5H2.5V20L6.4 16.4 2.5 12.8V7Z'
+const SHARD_RING_PATH = 'M12 2.4 19.6 6.9 19.6 17.1 12 21.6 4.4 17.1 4.4 6.9Z'
 
-/** The neural-jack core seated in the shard's centre. */
-const CORE_PATH = 'M12 8.4 15.8 10.7V15.3L12 17.6 8.2 15.3V10.7Z'
+/** The core sigil: a solid rhombus seated in the ring. */
+const CORE_PATH = 'M12 8 16 12 12 16 8 12Z'
 
-/** The socket bore inside the core. */
-const BORE_PATH = 'M12 10.9 13.5 11.8V14.2L12 15.1 10.5 14.2V11.8Z'
+/** The contact bar under the sigil, the mark's one accent in the lighter neon. */
+const CONTACT_PATH = 'M9.4 18.1H14.6'
 
-/**
- * Circuit traces entering the shard from its four bevels.
- *
- * Inset rather than bleeding past the viewBox: the previous traces terminated
- * outside the grid and were clipped, so the mark read as a bare shard. These
- * stop inside the silhouette and read as contacts on the casing.
- */
-const TRACE_PATHS = [
-  'M12 5.4V7.2',
-  'M17.6 8.6H19.4',
-  'M4.6 8.6H6.4',
-  'M12 18.4V20.2',
-] as const
+/** Stroke widths, in the mark's own 24-unit grid. */
+const RING_STROKE = 2.3
+const CONTACT_STROKE = 1.6
 
-/** Hover-swim analogue: the shard's glitch displacement targets, interpolated by SMIL. */
-const GLITCH_SHIFT_PATH =
-  'M12.9 1.5 22.4 7.3V12.5L18.2 16.3 22.2 20.4V22.5H1.8V20.4L5.8 16.3 1.6 12.5V7.3Z'
+/** Hover-swim analogue: the ring's glitch displacement target, interpolated by SMIL. */
+const GLITCH_SHIFT_PATH = 'M13.1 2.1 20.4 6.7 20.4 17.3 12.6 21.9 3.9 17.1 3.9 6.7Z'
 
 /**
  * Render the cyberpunk ICE mark.
@@ -87,11 +77,17 @@ export function IceBrandMark({ size = 24, className, active = false }: IconProps
       aria-hidden="true"
     >
       <g data-cyber-ice>
-        <path d={SHARD_PATH} fill="currentColor">
+        <path
+          d={SHARD_RING_PATH}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={RING_STROKE}
+          strokeLinejoin="round"
+        >
           {active && (
             <animate
               attributeName="d"
-              values={`${SHARD_PATH};${GLITCH_SHIFT_PATH};${SHARD_PATH};${GLITCH_SHIFT_PATH};${SHARD_PATH}`}
+              values={`${SHARD_RING_PATH};${GLITCH_SHIFT_PATH};${SHARD_RING_PATH};${GLITCH_SHIFT_PATH};${SHARD_RING_PATH}`}
               keyTimes="0;0.18;0.24;0.3;1"
               calcMode="linear"
               dur="2.4s"
@@ -110,16 +106,13 @@ export function IceBrandMark({ size = 24, className, active = false }: IconProps
             />
           )}
         </path>
-        <path d={BORE_PATH} data-cyber-ice-bore fill="var(--dsh-cyber-board, #0b0714)" />
-        {TRACE_PATHS.map(trace => (
-          <path
-            key={trace}
-            d={trace}
-            stroke="currentColor"
-            strokeWidth={1.4}
-            strokeLinecap="round"
-          />
-        ))}
+        <path
+          d={CONTACT_PATH}
+          data-cyber-ice-contact
+          stroke="currentColor"
+          strokeWidth={CONTACT_STROKE}
+          strokeLinecap="round"
+        />
       </g>
     </svg>
   )
